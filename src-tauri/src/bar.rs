@@ -2,7 +2,7 @@
 
 use tauri::{AppHandle, WebviewUrl};
 use tauri_nspanel::{
-    tauri_panel, CollectionBehavior, ManagerExt, PanelBuilder, PanelLevel, StyleMask,
+    CollectionBehavior, ManagerExt, PanelBuilder, PanelLevel, StyleMask, tauri_panel,
 };
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
@@ -60,17 +60,24 @@ fn create_bar(app: &AppHandle) -> tauri::Result<()> {
         .corner_radius(14.0)
         .hides_on_deactivate(false)
         .no_activate(true)
-        .with_window(|w| w.decorations(false).transparent(true).visible(false).center())
+        .with_window(|w| {
+            w.decorations(false)
+                .transparent(true)
+                .visible(false)
+                .center()
+        })
         .build()?;
     Ok(())
 }
 
 fn toggle_bar(app: &AppHandle) {
-    let Ok(panel) = app.get_webview_panel(BAR_LABEL) else { return };
-    
-    if panel.is_visible(){
+    let Ok(panel) = app.get_webview_panel(BAR_LABEL) else {
+        return;
+    };
+
+    if panel.is_visible() {
         panel.hide();
-    }else{
+    } else {
         panel.show();
     }
 }
