@@ -1,5 +1,3 @@
-//! Shared types that every agent adapter produces and the rest of the app consumes.
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AgentId {
     Claude,
