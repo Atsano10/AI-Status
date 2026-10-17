@@ -20,7 +20,7 @@ impl TokenUsage {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct UsageEvent{
+pub struct UsageEvent {
     pub agent: AgentId,
     pub ts: i64,
     pub session_id: String,
