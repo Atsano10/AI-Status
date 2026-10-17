@@ -1,14 +1,4 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+//! StatusPal's core: reads AI agents' local usage data and turns it into what the bar shows.
+//! No UI code lives here, so everything can be tested with `cargo test -p statuspal-core`.
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub mod model;
