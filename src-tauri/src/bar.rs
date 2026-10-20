@@ -70,7 +70,8 @@ fn create_bar(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
-fn toggle_bar(app: &AppHandle) {
+/// Shows the bar if it's hidden, hides it if it's showing. Used by the hotkey and the menu bar menu.
+pub fn toggle_bar(app: &AppHandle) {
     let Ok(panel) = app.get_webview_panel(BAR_LABEL) else {
         return;
     };

@@ -1,5 +1,7 @@
 #[cfg(target_os = "macos")]
 mod bar;
+#[cfg(target_os = "macos")]
+mod tray;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -23,7 +25,12 @@ pub fn run() {
     builder
         .setup(|app| {
             #[cfg(target_os = "macos")]
-            bar::setup(app.handle())?;
+            {
+                // A menu bar app: no Dock icon and no app menu. Set this before building the bar.
+                app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+                bar::setup(app.handle())?;
+                tray::setup(app.handle())?;
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![greet, get_limits])
