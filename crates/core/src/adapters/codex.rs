@@ -110,7 +110,7 @@ pub fn sessions_dir() -> Option<PathBuf> {
 }
 
 /// True for Codex log files: `rollout-<date>-<id>.jsonl`.
-fn is_rollout_file(path: &Path) -> bool {
+pub(crate) fn is_rollout_file(path: &Path) -> bool {
     let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
         return false;
     };

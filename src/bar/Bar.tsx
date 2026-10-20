@@ -20,9 +20,15 @@ export default function Bar() {
 
     refresh();
     // Rust emits this every time the hotkey shows the bar.
-    const unlisten = listen("bar-shown", refresh);
+    const unlistenShown = listen("bar-shown", refresh);
+    // And this whenever Claude or Codex writes new usage data (crates/core/src/watch.rs).
+    const unlistenUpdated = listen<UsageSnapshot[]>("limits-updated", (e) => {
+      setSnapshots(e.payload);
+      setError(null);
+    });
     return () => {
-      unlisten.then((stop) => stop());
+      unlistenShown.then((stop) => stop());
+      unlistenUpdated.then((stop) => stop());
     };
   }, []);
 

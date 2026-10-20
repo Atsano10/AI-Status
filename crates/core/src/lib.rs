@@ -4,3 +4,4 @@
 pub mod adapters;
 pub mod model;
 pub mod snapshot;
+pub mod watch;

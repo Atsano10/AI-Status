@@ -14,10 +14,14 @@ use serde::Deserialize;
 
 use crate::model::LimitWindow;
 
+/// The name of the file our statusLine program saves.
+pub const FILE_NAME: &str = "claude-statusline.json";
+
 /// Where our statusLine script saves the JSON. `None` if we can't find your home folder.
 pub fn statusline_file() -> Option<PathBuf> {
     std::env::home_dir().map(|home| {
-        home.join("Library/Application Support/com.atsano10.statuspal/claude-statusline.json")
+        home.join("Library/Application Support/com.atsano10.statuspal")
+            .join(FILE_NAME)
     })
 }
 
