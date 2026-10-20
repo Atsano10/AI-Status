@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use crate::model::{AgentId, TokenUsage, UsageEvent};
+use crate::model::{AgentId, LimitWindow, TokenUsage, UsageEvent};
 
 /// One line of a rollout file.
 #[derive(Debug, Deserialize)]
@@ -24,6 +24,8 @@ struct Payload {
     model: Option<String>,
     /// Token totals, on `token_count` lines. Sometimes `null`.
     info: Option<TokenInfo>,
+    /// Your Codex limit, on `token_count` lines.
+    rate_limits: Option<RawRateLimits>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -63,6 +65,32 @@ impl RawUsage {
             cache_read: self.cached_input_tokens,
             cache_write: 0,
             reasoning: self.reasoning_output_tokens,
+        }
+    }
+}
+
+/// `payload.rate_limits`. Your plan has one window (`primary`); `secondary` is always null, so we skip it.
+#[derive(Debug, Deserialize)]
+struct RawRateLimits {
+    primary: Option<RawWindow>,
+}
+
+/// One limit window, e.g. `{"used_percent": 6.0, "window_minutes": 43200, "resets_at": 1785537790}`.
+#[derive(Debug, Clone, Copy, Deserialize)]
+struct RawWindow {
+    used_percent: f64,
+    window_minutes: u32,
+    resets_at: Option<i64>,
+}
+
+impl RawWindow {
+    /// Converts Codex's window into our shared `LimitWindow`.
+    fn to_limit_window(self, observed_at: i64) -> LimitWindow {
+        LimitWindow {
+            used_pct: self.used_percent,
+            window_minutes: self.window_minutes,
+            resets_at: self.resets_at,
+            observed_at,
         }
     }
 }
@@ -136,6 +164,28 @@ pub fn parse_session(contents: &str) -> Vec<UsageEvent> {
         }
     }
     events
+}
+
+/// The newest rate-limit reading in a rollout file, if it has any.
+/// Lines are written in time order, so the last reading wins.
+pub fn latest_limit(contents: &str) -> Option<LimitWindow> {
+    let mut latest = None;
+
+    for raw_line in contents.lines() {
+        let Some(line) = parse_line(raw_line) else {
+            continue;
+        };
+        // `and_then` opens one Option and continues with another inside it:
+        // no `rate_limits` → None; `rate_limits` but no `primary` → None; otherwise the window.
+        let Some(window) = line.payload.rate_limits.and_then(|limits| limits.primary) else {
+            continue;
+        };
+        let Some(observed_at) = parse_timestamp(&line.timestamp) else {
+            continue;
+        };
+        latest = Some(window.to_limit_window(observed_at));
+    }
+    latest
 }
 
 #[cfg(test)]
@@ -249,5 +299,42 @@ mod tests {
                 reasoning: 20,
             }
         );
+    }
+
+    #[test]
+    fn to_limit_window_copies_the_fields() {
+        let raw = RawWindow {
+            used_percent: 6.0,
+            window_minutes: 43200,
+            resets_at: Some(1785537790),
+        };
+        assert_eq!(
+            raw.to_limit_window(1782945793),
+            LimitWindow {
+                used_pct: 6.0,
+                window_minutes: 43200,
+                resets_at: Some(1785537790),
+                observed_at: 1782945793,
+            }
+        );
+    }
+
+    #[test]
+    fn latest_limit_takes_the_last_reading() {
+        let contents = r#"{"timestamp":"2026-07-01T22:43:13.922Z","type":"event_msg","payload":{"type":"token_count","info":null,"rate_limits":{"primary":{"used_percent":5.0,"window_minutes":43200,"resets_at":1785537788},"secondary":null}}}
+{"timestamp":"2026-07-01T22:44:00.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[]}}
+{"timestamp":"2026-07-01T22:45:02.500Z","type":"event_msg","payload":{"type":"token_count","info":null,"rate_limits":{"primary":{"used_percent":6.0,"window_minutes":43200,"resets_at":1785537790},"secondary":null}}}
+{"timestamp":"2026-07-01T22:46:00.000Z","type":"event_msg","payload":{"type":"token_count","info":null,"rate_limits":null}}"#;
+
+        let limit = latest_limit(contents).expect("there are readings");
+        assert_eq!(limit.used_pct, 6.0);
+        assert_eq!(limit.resets_at, Some(1785537790));
+        assert_eq!(limit.observed_at, 1782945902); // the 22:45:02 line, not the later line without limits
+    }
+
+    #[test]
+    fn latest_limit_is_none_without_readings() {
+        let contents = r#"{"timestamp":"2026-07-01T22:42:12.764Z","type":"session_meta","payload":{"id":"test-session"}}"#;
+        assert!(latest_limit(contents).is_none());
     }
 }
