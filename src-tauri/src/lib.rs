@@ -17,6 +17,12 @@ fn get_limits() -> Vec<statuspal_core::model::UsageSnapshot> {
     statuspal_core::snapshot::current_snapshots()
 }
 
+/// The ☰ menu's "Quit StatusPal".
+#[tauri::command]
+fn quit(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default().plugin(tauri_plugin_opener::init());
@@ -59,7 +65,12 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             get_limits,
-            active::get_active_agent
+            quit,
+            active::get_active_agent,
+            #[cfg(target_os = "macos")]
+            bar::resize_bar,
+            #[cfg(target_os = "macos")]
+            bar::hide_bar
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,0 +1,60 @@
+/*
+ * Design tokens for StatusPal. Names match the "StatusPal" variables in the Figma file
+ * (surface/pill → --surface-pill), so a change in one is easy to copy to the other.
+ * Dark only for v1: the pill is notch-black so it can merge into the MacBook notch.
+ */
+:root {
+  /* Surfaces */
+  --surface-pill: #0a0a0c;
+  --surface-panel: #17171b;
+  --surface-track: #2a2a31;
+  --surface-hairline: #34343c;
+  /* 1px outline so the pill reads on dark wallpapers */
+  --surface-edge: rgba(245, 245, 247, 0.08);
+
+  /* Text */
+  --text-primary: #f5f5f7;
+  --text-secondary: #a1a1aa;
+  --text-tertiary: #62626b;
+
+  /* Usage level (bar fill): < 75% normal, 75–90% close, > 90% out */
+  --level-normal: #ffd34e;
+  --level-close: #ff9f43;
+  --level-out: #ff5a5f;
+  --level-reset: #5be49b;
+
+  /* Agent accents (the critter colours) */
+  --agent-claude: #e8835f;
+  --agent-codex: #6fd6c4;
+
+  /* Shape & spacing */
+  --radius-pill: 16px;
+  --radius-panel: 16px;
+  --radius-track: 3px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+
+  /* Sizes */
+  --pill-height: 32px; /* same as the MacBook notch */
+  --pill-width-vertical: 36px;
+  --critter-size: 28px;
+  --track-length: 96px;
+  --track-thickness: 6px;
+  --label-width: 64px; /* fixed, so the pill doesn't jump as numbers change */
+  --panel-width: 272px;
+
+  /* Type: the real Apple fonts (Figma shows Inter / Nunito as stand-ins) */
+  --font-ui:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  --font-num:
+    ui-rounded, "SF Pro Rounded", -apple-system, system-ui, sans-serif;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 140ms;
+  --dur-med: 280ms;
+  --dur-slow: 480ms;
+}
