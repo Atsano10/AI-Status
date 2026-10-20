@@ -3,3 +3,4 @@
 
 pub mod adapters;
 pub mod model;
+pub mod snapshot;

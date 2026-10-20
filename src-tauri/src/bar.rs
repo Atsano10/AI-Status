@@ -1,6 +1,6 @@
 //! Phase 0 spike: a floating bar that never steals focus, toggled by a global hotkey.
 
-use tauri::{AppHandle, WebviewUrl};
+use tauri::{AppHandle, Emitter, WebviewUrl};
 use tauri_nspanel::{
     CollectionBehavior, ManagerExt, PanelBuilder, PanelLevel, StyleMask, tauri_panel,
 };
@@ -79,5 +79,7 @@ fn toggle_bar(app: &AppHandle) {
         panel.hide();
     } else {
         panel.show();
+        // Tell the bar's page to fetch fresh numbers.
+        let _ = app.emit_to(BAR_LABEL, "bar-shown", ());
     }
 }

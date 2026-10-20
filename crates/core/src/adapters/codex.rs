@@ -132,6 +132,22 @@ pub fn find_session_files(dir: &Path) -> io::Result<Vec<PathBuf>> {
     Ok(files)
 }
 
+/// The newest limit reading across every session file in `dir`.
+pub fn read_latest_limit(dir: &Path) -> io::Result<Option<LimitWindow>> {
+    let mut latest: Option<LimitWindow> = None;
+    for file in find_session_files(dir)? {
+        let contents = std::fs::read_to_string(&file)?;
+        if let Some(limit) = latest_limit(&contents)
+            && latest
+                .as_ref()
+                .is_none_or(|l| limit.observed_at > l.observed_at)
+        {
+            latest = Some(limit);
+        }
+    }
+    Ok(latest)
+}
+
 /// Turns an ISO timestamp like `2026-07-01T22:43:18.175Z` into Unix seconds.
 fn parse_timestamp(ts: &str) -> Option<i64> {
     chrono::DateTime::parse_from_rfc3339(ts)

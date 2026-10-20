@@ -1,4 +1,6 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+use serde::Serialize;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum AgentId {
     Claude,
     Codex,
@@ -29,7 +31,7 @@ pub struct UsageEvent {
 }
 
 /// One rate-limit window, like "6% of your 30-day limit, resets Jul 31".
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct LimitWindow {
     pub used_pct: f64,
     pub window_minutes: u32,
@@ -45,6 +47,15 @@ impl LimitWindow {
             None => false,
         }
     }
+}
+
+/// Everything the bar shows for one agent. Grows later (tokens today, model, gait...).
+/// `Serialize` lets Tauri send it to the bar as JSON.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct UsageSnapshot {
+    pub agent: AgentId,
+    /// 0, 1 or 2 limit bars.
+    pub windows: Vec<LimitWindow>,
 }
 
 #[cfg(test)]
