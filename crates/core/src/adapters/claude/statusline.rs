@@ -1,9 +1,11 @@
-//! Reads the JSON that Claude Code sends to its statusLine command, which our script saves to
-//! `~/Library/Application Support/com.atsano10.statuspal/claude-statusline.json`.
+//! Reads the JSON that Claude Code sends to its statusLine command. Our `statuspal-statusline` program
+//! (`src/bin/statusline.rs`) saves it to `~/Library/Application Support/com.atsano10.statuspal/claude-statusline.json`
+//! and prints the one-line summary you see under Claude Code's prompt.
 //!
 //! The part we need: `{"rate_limits": {"five_hour": {"used_percentage": 3, "resets_at": 1792526400}, "seven_day": {...}}}`.
 //! Either window can be missing (and on this Mac `seven_day` hasn't shown up yet).
 
+use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
@@ -21,7 +23,15 @@ pub fn statusline_file() -> Option<PathBuf> {
 
 #[derive(Debug, Deserialize)]
 struct StatusLine {
+    model: Option<RawModel>,
     rate_limits: Option<RawRateLimits>,
+}
+
+/// `model`, e.g. `{"id": "claude-opus-5-5[1m]", "display_name": "Opus 5.5 (1M context)"}`.
+/// `Option` matters: if a required field were missing, serde would reject the whole JSON, rate limits included.
+#[derive(Debug, Deserialize)]
+struct RawModel {
+    display_name: Option<String>,
 }
 
 /// `rate_limits`: the 5-hour and the weekly window, each one optional.
@@ -82,6 +92,61 @@ pub fn read(path: &Path) -> io::Result<Vec<LimitWindow>> {
     Ok(parse(&contents, observed_at))
 }
 
+/// Saves the statusLine JSON to `path` without a reader ever seeing a half-written file.
+/// Creates the folder if it's missing.
+pub fn save(path: &Path, contents: &str) -> io::Result<()> {
+    if let Some(dir) = path.parent() {
+        fs::create_dir_all(dir)?;
+    }
+    let tmp = path.with_extension("json.tmp");
+    fs::write(&tmp, contents)?;
+    fs::rename(&tmp, path)
+}
+
+/// The line Claude Code shows under its prompt, e.g. `Opus 5.5 · 5h 8% (3h 12m)`.
+pub fn summary(contents: &str, now: i64) -> String {
+    let mut line = model_name(contents);
+    for window in parse(contents, now) {
+        let label = match window.window_minutes {
+            300 => "5h",
+            10080 => "wk",
+            _ => "limit",
+        };
+        if window.has_reset(now) {
+            line.push_str(&format!(" · {label} 0%"));
+            continue;
+        }
+        line.push_str(&format!(" · {label} {:.0}%", window.used_pct));
+        if let Some(reset) = window.resets_at {
+            line.push_str(&format!(" ({})", until(reset - now)));
+        }
+    }
+    line
+}
+
+/// "Opus 5.5 (1M context)" → "Opus 5.5". Just "Claude" if the JSON has no model.
+fn model_name(contents: &str) -> String {
+    serde_json::from_str::<StatusLine>(contents)
+        .ok()
+        .and_then(|status| status.model)
+        .and_then(|model| model.display_name)
+        .map(|name| match name.split_once(" (") {
+            Some((short, _)) => short.to_string(),
+            None => name,
+        })
+        .unwrap_or_else(|| "Claude".to_string())
+}
+
+/// 11520 → "3h 12m", 353000 → "4d 2h".
+fn until(secs: i64) -> String {
+    let (days, hours, minutes) = (secs / 86400, secs % 86400 / 3600, secs % 3600 / 60);
+    if days > 0 {
+        format!("{days}d {hours}h")
+    } else {
+        format!("{hours}h {minutes}m")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -127,5 +192,54 @@ mod tests {
         assert!(parse(r#"{"rate_limits":null}"#, 0).is_empty());
         assert!(parse(r#"{"model":{"id":"claude-opus-5-5"}}"#, 0).is_empty());
         assert!(parse("not json", 0).is_empty());
+    }
+
+    #[test]
+    fn summary_with_five_hour_window() {
+        let json = r#"{"model":{"display_name":"Opus 5.5 (1M context)"},"rate_limits":{"five_hour":{"used_percentage":8,"resets_at":1792526400}}}"#;
+        // 3h 12m before the reset.
+        assert_eq!(
+            summary(json, 1792526400 - 11520),
+            "Opus 5.5 · 5h 8% (3h 12m)"
+        );
+    }
+
+    #[test]
+    fn summary_with_both_windows() {
+        let json = r#"{"model":{"display_name":"Sonnet 5.5"},"rate_limits":{"five_hour":{"used_percentage":14,"resets_at":1792092000},"seven_day":{"used_percentage":41,"resets_at":1792445000}}}"#;
+        assert_eq!(
+            summary(json, 1792090000),
+            "Sonnet 5.5 · 5h 14% (0h 33m) · wk 41% (4d 2h)"
+        );
+    }
+
+    #[test]
+    fn summary_after_the_reset() {
+        let json = r#"{"model":{"display_name":"Opus 5.5"},"rate_limits":{"five_hour":{"used_percentage":90,"resets_at":1000}}}"#;
+        assert_eq!(summary(json, 2000), "Opus 5.5 · 5h 0%");
+    }
+
+    #[test]
+    fn summary_without_limits_or_model() {
+        assert_eq!(
+            summary(r#"{"model":{"display_name":"Opus 5.5"}}"#, 0),
+            "Opus 5.5"
+        );
+        assert_eq!(summary("not json", 0), "Claude");
+    }
+
+    #[test]
+    fn save_creates_the_folder_and_leaves_no_temp_file() {
+        let dir = std::env::temp_dir().join(format!("statuspal-test-{}", std::process::id()));
+        let path = dir.join("nested/claude-statusline.json");
+
+        save(&path, "first").unwrap();
+        save(&path, "second").unwrap(); // overwriting works too
+        let contents = fs::read_to_string(&path).unwrap();
+        let tmp_left = path.with_extension("json.tmp").exists();
+        let _ = fs::remove_dir_all(&dir); // clean up before asserting, so a failure doesn't leave junk
+
+        assert_eq!(contents, "second");
+        assert!(!tmp_left);
     }
 }
