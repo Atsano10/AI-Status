@@ -122,7 +122,7 @@ pub fn find_session_files(dir: &Path) -> io::Result<Vec<PathBuf>> {
     let mut files = Vec::new();
     for entry in std::fs::read_dir(dir)? {
         let path = entry?.path();
-        if (path.is_dir()) {
+        if path.is_dir() {
             files.extend(find_session_files(&path)?);
         } else if is_rollout_file(&path) {
             files.push(path);
