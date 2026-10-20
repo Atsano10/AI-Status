@@ -1,5 +1,6 @@
 use tauri::{Emitter, Manager};
 
+mod active;
 #[cfg(target_os = "macos")]
 mod bar;
 #[cfg(target_os = "macos")]
@@ -34,6 +35,8 @@ pub fn run() {
                 tray::setup(app.handle())?;
             }
 
+            active::setup(app.handle());
+
             // Send fresh numbers to the bar whenever Claude or Codex writes new usage data.
             let handle = app.handle().clone();
             match statuspal_core::watch::spawn(move || {
@@ -53,7 +56,11 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![greet, get_limits])
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            get_limits,
+            active::get_active_agent
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

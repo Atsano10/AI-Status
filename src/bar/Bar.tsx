@@ -1,12 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
-import type { LimitWindow, UsageSnapshot } from "./types";
+import type { AgentId, LimitWindow, UsageSnapshot } from "./types";
 
 // Placeholder bar: plain text until the real designs land in Phase 3.
 export default function Bar() {
   const [snapshots, setSnapshots] = useState<UsageSnapshot[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const active = useActiveAgent();
   const now = useNow();
 
   useEffect(() => {
@@ -41,6 +42,8 @@ export default function Bar() {
     <div className="bar">
       {snapshots.map((s) => (
         <span key={s.agent} className="agent">
+          {/* Placeholder for the creature: a paw on the agent you're using. */}
+          {s.agent === active && "🐾 "}
           <b>{s.agent}</b>
           {s.windows.map((w) => (
             <span key={w.window_minutes}> {describe(w, now)}</span>
@@ -49,6 +52,22 @@ export default function Bar() {
       ))}
     </div>
   );
+}
+
+/** The agent you're using right now (src-tauri/src/active.rs), or null if we can't tell yet. */
+function useActiveAgent(): AgentId | null {
+  const [active, setActive] = useState<AgentId | null>(null);
+  useEffect(() => {
+    // Ask once in case we missed the first event, then follow changes.
+    invoke<AgentId | null>("get_active_agent").then(setActive);
+    const unlisten = listen<AgentId | null>("active-agent-changed", (e) =>
+      setActive(e.payload),
+    );
+    return () => {
+      unlisten.then((stop) => stop());
+    };
+  }, []);
+  return active;
 }
 
 /** The current time in Unix seconds, updated every second so countdowns keep ticking while the bar is open. */

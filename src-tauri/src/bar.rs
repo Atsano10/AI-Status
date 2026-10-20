@@ -44,7 +44,7 @@ pub fn setup(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
 fn create_bar(app: &AppHandle) -> tauri::Result<()> {
     PanelBuilder::<_, BarPanel>::new(app, BAR_LABEL)
         .url(WebviewUrl::App("bar.html".into()))
-        .size(tauri::Size::Logical(tauri::LogicalSize::new(360.0, 48.0)))
+        .size(tauri::Size::Logical(tauri::LogicalSize::new(460.0, 48.0)))
         // Status level sits above normal and fullscreen windows.
         .level(PanelLevel::Status)
         .style_mask(StyleMask::empty().borderless().nonactivating_panel())

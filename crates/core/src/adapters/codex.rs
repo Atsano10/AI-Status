@@ -137,7 +137,9 @@ pub fn find_session_files(dir: &Path) -> io::Result<Vec<PathBuf>> {
 pub fn read_latest_limit(dir: &Path) -> io::Result<Option<LimitWindow>> {
     let mut latest: Option<LimitWindow> = None;
     for file in find_session_files(dir)? {
-        let contents = std::fs::read_to_string(&file)?;
+        let Ok(contents) = std::fs::read_to_string(&file) else {
+            continue;
+        };
         if let Some(limit) = latest_limit(&contents)
             && latest
                 .as_ref()
