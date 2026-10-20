@@ -1,3 +1,6 @@
+use std::io;
+use std::path::{Path, PathBuf};
+
 use serde::Deserialize;
 
 use crate::model::{AgentId, LimitWindow, TokenUsage, UsageEvent};
@@ -98,6 +101,35 @@ impl RawWindow {
 /// Parses one line. Returns `None` if it isn't valid JSON or doesn't have the shape we expect.
 fn parse_line(line: &str) -> Option<LogLine> {
     serde_json::from_str(line).ok()
+}
+
+/// Where Codex keeps its logs: `~/.codex/sessions`. `None` if we can't find your home folder.
+pub fn sessions_dir() -> Option<PathBuf> {
+    std::env::home_dir().map(|home| home.join(".codex").join("sessions"))
+}
+
+/// True for Codex log files: `rollout-<date>-<id>.jsonl`.
+fn is_rollout_file(path: &Path) -> bool {
+    let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+        return false;
+    };
+    name.starts_with("rollout-") && name.ends_with(".jsonl")
+}
+
+/// Every rollout file under `dir`, including the year/month/day folders inside it, sorted by path
+/// (which is also by date, since the folders are named by date).
+pub fn find_session_files(dir: &Path) -> io::Result<Vec<PathBuf>> {
+    let mut files = Vec::new();
+    for entry in std::fs::read_dir(dir)? {
+        let path = entry?.path();
+        if (path.is_dir()) {
+            files.extend(find_session_files(&path)?);
+        } else if is_rollout_file(&path) {
+            files.push(path);
+        }
+    }
+    files.sort();
+    Ok(files)
 }
 
 /// Turns an ISO timestamp like `2026-07-01T22:43:18.175Z` into Unix seconds.
@@ -336,5 +368,37 @@ mod tests {
     fn latest_limit_is_none_without_readings() {
         let contents = r#"{"timestamp":"2026-07-01T22:42:12.764Z","type":"session_meta","payload":{"id":"test-session"}}"#;
         assert!(latest_limit(contents).is_none());
+    }
+
+    #[test]
+    fn finds_rollout_files_in_nested_folders() {
+        // Build a fake ~/.codex/sessions in a temporary folder.
+        let root = std::env::temp_dir().join(format!("statuspal-test-{}", std::process::id()));
+        let day = root.join("2026").join("07").join("01");
+        std::fs::create_dir_all(&day).unwrap();
+        std::fs::write(day.join("rollout-2026-07-01T18-42-12-abc.jsonl"), "").unwrap();
+        std::fs::write(day.join("notes.txt"), "").unwrap(); // not a rollout file
+        std::fs::write(root.join("rollout-2026-05-17T21-04-24-def.jsonl"), "").unwrap();
+
+        let files = find_session_files(&root).unwrap();
+        std::fs::remove_dir_all(&root).unwrap();
+
+        let names: Vec<_> = files
+            .iter()
+            .map(|f| f.file_name().unwrap().to_str().unwrap())
+            .collect();
+        assert_eq!(
+            names,
+            [
+                "rollout-2026-07-01T18-42-12-abc.jsonl", // sorted by path: "2026/..." comes before "rollout-..."
+                "rollout-2026-05-17T21-04-24-def.jsonl",
+            ]
+        );
+    }
+
+    #[test]
+    fn missing_folder_is_an_error() {
+        let result = find_session_files(Path::new("/this/folder/does/not/exist"));
+        assert!(result.is_err());
     }
 }
