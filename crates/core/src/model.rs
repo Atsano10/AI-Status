@@ -37,6 +37,9 @@ pub struct LimitWindow {
     pub window_minutes: u32,
     pub resets_at: Option<i64>,
     pub observed_at: i64,
+    /// True when the source rounds its numbers (Claude Code sends whole-number % and resets on the hour),
+    /// so the bar shows "~6%" instead of claiming more precision than we have.
+    pub approximate: bool,
 }
 
 impl LimitWindow {
@@ -80,6 +83,7 @@ mod tests {
             window_minutes: 300,
             resets_at: Some(1000),
             observed_at: 500,
+            approximate: false,
         };
         assert!(!window.has_reset(999)); // one second before: still counts
         assert!(window.has_reset(1000)); // exactly at reset: back to 0
@@ -93,6 +97,7 @@ mod tests {
             window_minutes: 300,
             resets_at: None,
             observed_at: 500,
+            approximate: false,
         };
         assert!(!window.has_reset(i64::MAX));
     }

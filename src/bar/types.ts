@@ -7,6 +7,7 @@ export interface LimitWindow {
   window_minutes: number;
   resets_at: number | null; // Unix seconds
   observed_at: number; // Unix seconds
+  approximate: boolean; // source rounds its numbers, so show "~"
 }
 
 export interface UsageSnapshot {

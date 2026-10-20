@@ -72,6 +72,7 @@ fn describe(limit: &LimitWindow, now: i64) -> String {
         m => format!("{m}-minute"),
     };
     let used = limit.used_pct;
+    let approx = if limit.approximate { "~" } else { "" };
 
     match limit.resets_at {
         Some(reset) if limit.has_reset(now) => {
@@ -81,10 +82,10 @@ fn describe(limit: &LimitWindow, now: i64) -> String {
             )
         }
         Some(reset) => format!(
-            "{used:.0}% of {window} limit, resets in {}",
+            "{approx}{used:.0}% of {window} limit, resets in {approx}{}",
             duration(reset - now)
         ),
-        None => format!("{used:.0}% of {window} limit, reset time unknown"),
+        None => format!("{approx}{used:.0}% of {window} limit, reset time unknown"),
     }
 }
 

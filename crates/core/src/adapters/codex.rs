@@ -94,6 +94,7 @@ impl RawWindow {
             window_minutes: self.window_minutes,
             resets_at: self.resets_at,
             observed_at,
+            approximate: false,
         }
     }
 }
@@ -363,6 +364,7 @@ mod tests {
                 window_minutes: 43200,
                 resets_at: Some(1785537790),
                 observed_at: 1782945793,
+                approximate: false,
             }
         );
     }

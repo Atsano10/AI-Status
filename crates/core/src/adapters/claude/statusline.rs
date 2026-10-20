@@ -45,6 +45,8 @@ impl RawWindow {
             window_minutes,
             resets_at: self.resets_at,
             observed_at,
+            // Claude Code sends a whole-number % and a reset time rounded to the hour.
+            approximate: true,
         }
     }
 }
@@ -96,12 +98,14 @@ mod tests {
                     window_minutes: 300,
                     resets_at: Some(1792092000),
                     observed_at: 1792090000,
+                    approximate: true,
                 },
                 LimitWindow {
                     used_pct: 41.5,
                     window_minutes: 10080,
                     resets_at: Some(1792500000),
                     observed_at: 1792090000,
+                    approximate: true,
                 },
             ]
         );
