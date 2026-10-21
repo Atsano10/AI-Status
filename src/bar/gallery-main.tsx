@@ -3,6 +3,19 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import GalleryPage from "./GalleryPage";
+// Font candidates for the "Fonts" section. Only the one we pick moves into the real bar.
+import "@fontsource/geist-sans/400.css";
+import "@fontsource/geist-sans/500.css";
+import "@fontsource/geist-sans/700.css";
+import "@fontsource/jetbrains-mono/400.css";
+import "@fontsource/jetbrains-mono/500.css";
+import "@fontsource/jetbrains-mono/700.css";
+import "@fontsource/nunito/500.css";
+import "@fontsource/nunito/600.css";
+import "@fontsource/nunito/800.css";
+import "@fontsource/pixelify-sans/400.css";
+import "@fontsource/pixelify-sans/500.css";
+import "@fontsource/pixelify-sans/700.css";
 import "./bar.css";
 import "./gallery.css";
 

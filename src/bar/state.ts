@@ -6,6 +6,13 @@ export type Level = "normal" | "close" | "out";
 /** Which window the pill shows when an agent has two (Claude: 5h + week). */
 export type PreferredWindow = "5h" | "week";
 
+/** How the critter acts. See critter.css for what each one looks like. */
+export type Mood =
+  "idle" | "working" | "nervous" | "alarm" | "cheer" | "sleep" | "confused";
+
+/** How recently an agent must have written usage data for its critter to look busy. */
+export const WORKING_SECS = 90;
+
 /** What the pill shows. One case per state in the Figma "Pill" component. */
 export type PillView =
   | {
@@ -147,4 +154,34 @@ export function resetText(w: LimitWindow, now: number): string {
 export function updatedText(observedAt: number, now: number): string {
   const secs = now - observedAt;
   return secs < 60 ? "updated just now" : `updated ${until(secs)} ago`;
+}
+
+/** When the agent last wrote usage data, from the newest reading in its snapshot. */
+export function lastActivity(snapshot: UsageSnapshot | null): number | null {
+  if (!snapshot || snapshot.windows.length === 0) return null;
+  return Math.max(...snapshot.windows.map((w) => w.observed_at));
+}
+
+/** The critter's mood for what the pill shows. */
+export function critterMood(
+  view: PillView,
+  lastActive: number | null,
+  now: number,
+): Mood {
+  switch (view.kind) {
+    case "limit-hit":
+      return "alarm";
+    case "just-reset":
+      return "cheer";
+    case "paused":
+    case "no-agent":
+      return "sleep";
+    case "no-data":
+      return "confused";
+    case "usage":
+      if (view.level !== "normal") return "nervous";
+      return lastActive !== null && now - lastActive < WORKING_SECS
+        ? "working"
+        : "idle";
+  }
 }

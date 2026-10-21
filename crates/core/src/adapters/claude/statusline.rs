@@ -234,7 +234,8 @@ mod tests {
 
     #[test]
     fn save_creates_the_folder_and_leaves_no_temp_file() {
-        let dir = std::env::temp_dir().join(format!("statuspal-test-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("statuspal-test-statusline-{}", std::process::id()));
         let path = dir.join("nested/claude-statusline.json");
 
         save(&path, "first").unwrap();

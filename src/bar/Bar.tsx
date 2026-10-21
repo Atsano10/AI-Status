@@ -5,7 +5,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Panel from "./Panel";
 import Pill from "./Pill";
 import { isPaused, usePrefs, type Prefs } from "./prefs";
-import { derivePill } from "./state";
+import { critterMood, derivePill, lastActivity } from "./state";
 import type { AgentId, UsageSnapshot } from "./types";
 
 /** The real bar: live data from Rust drawn by BarView. */
@@ -14,8 +14,8 @@ export default function Bar() {
   const active = useActiveAgent();
   const now = useNow();
   const [prefs, setPrefs] = usePrefs();
-  const hovered = useTauriEvent<boolean>("bar-hover", false);
   const shown = useShowCount();
+  const hovered = useTauriEvent<boolean>("bar-hover", false);
 
   // Pausing freezes the numbers where they were, so nothing moves until you resume.
   const paused = isPaused(prefs, now);
@@ -33,8 +33,9 @@ export default function Bar() {
       now={now}
       prefs={prefs}
       onPrefs={setPrefs}
-      externalHover={hovered}
-      onResize={(width, height) => invoke("resize_bar", { width, height })}
+      hovered={hovered}
+      onClickThrough={setClickThrough}
+      onResize={resizeBar}
       onDragStart={() => getCurrentWindow().startDragging()}
       onHide={() => invoke("hide_bar")}
       onQuit={() => invoke("quit")}
@@ -42,25 +43,45 @@ export default function Bar() {
   );
 }
 
+// Defined once, outside the component, so BarView's effects don't re-run on every render (the bar re-renders
+// every second for the countdowns).
+const setClickThrough = (enabled: boolean) =>
+  invoke("set_click_through", { enabled });
+const resizeBar = (width: number, height: number) =>
+  invoke("resize_bar", { width, height });
+
 interface BarViewProps {
   snapshots: UsageSnapshot[];
   agent: AgentId | null;
   now: number;
   prefs: Prefs;
   onPrefs: (change: Partial<Prefs>) => void;
-  /** Hover as seen by Rust. The webview gets no mouse-move events while the bar isn't focused (and it never is). */
-  externalHover?: boolean;
+  /**
+   * Whether the mouse is over the bar, as seen by Rust. The webview gets no mouse-leave events while the bar
+   * isn't focused (and it never is), so the app passes this in. Leave it out (the dev gallery) to use the
+   * page's own mouse events.
+   */
+  hovered?: boolean;
+  /** Called with `true` when the bar fades (clicks should pass through it) and `false` when it wakes. */
+  onClickThrough?: (enabled: boolean) => void;
   onResize?: (width: number, height: number) => void;
   onDragStart?: () => void;
   onHide?: () => void;
   onQuit?: () => void;
 }
 
-const OPEN_DELAY = 180;
-const CLOSE_DELAY = 320;
 const EXIT_ANIMATION = 140;
+/** A press that moves this far (px), or is held this long (ms), drags the bar instead of clicking it. */
+const DRAG_DISTANCE = 4;
+const DRAG_HOLD = 220;
+/** Left alone this long (ms), the bar fades so it's there when you glance at it but out of the way. */
+const FADE_AFTER = 5000;
+/** After something worth noticing (the critter's mood or agent changes), stay bright this long (ms). */
+const ALERT_FOR = 8000;
+/** Matches the fade-out transition in bar.css, so clicks pass through only once it's faded. */
+const FADE_OUT_MS = 600;
 
-/** Pill + hover panel, without any Tauri calls, so the dev gallery can show it with sample data. */
+/** Pill + panel, without any Tauri calls, so the dev gallery can show it with sample data. */
 export function BarView(props: BarViewProps) {
   const {
     snapshots,
@@ -68,13 +89,16 @@ export function BarView(props: BarViewProps) {
     now,
     prefs,
     onPrefs,
-    externalHover = false,
+    hovered,
+    onClickThrough,
     onResize,
     onDragStart,
   } = props;
   const [domHover, setDomHover] = useState(false);
-  const open = useDelayed(externalHover || domHover, OPEN_DELAY, CLOSE_DELAY);
+  // Click the pill to open the panel, click again to close it.
+  const [open, setOpen] = useState(false);
   const panel = usePresence(open, EXIT_ANIMATION);
+
   const stage = useRef<HTMLDivElement>(null);
   const paused = isPaused(prefs, now);
 
@@ -82,6 +106,19 @@ export function BarView(props: BarViewProps) {
     ? (snapshots.find((s) => s.agent === agent) ?? null)
     : null;
   const view = derivePill(snapshot, agent, prefs.barShows, paused, now);
+  const mood = critterMood(view, lastActivity(snapshot), now);
+
+  // Fade when left alone. Never while the panel is open or the mouse is over the bar.
+  const faded = useFaded(open || (hovered ?? domHover), `${agent}|${mood}`);
+  useEffect(() => {
+    if (!onClickThrough) return;
+    if (!faded) {
+      onClickThrough(false); // straight away, so a hover can be followed by a click
+      return;
+    }
+    const timer = setTimeout(() => onClickThrough(true), FADE_OUT_MS);
+    return () => clearTimeout(timer);
+  }, [faded, onClickThrough]);
 
   // Keep the window exactly the size of what's drawn, so the empty space around it doesn't eat clicks.
   useLayoutEffect(() => {
@@ -98,15 +135,21 @@ export function BarView(props: BarViewProps) {
   return (
     <div
       ref={stage}
-      className={`stage stage--${prefs.orientation}`}
+      className={`stage stage--${prefs.orientation}${faded ? " is-faded" : ""}`}
       onMouseEnter={() => setDomHover(true)}
       onMouseLeave={() => setDomHover(false)}
     >
       <Pill
         view={view}
         orientation={prefs.orientation}
+        agent={agent}
+        mood={mood}
         onMouseDown={(e) => {
-          if (e.button === 0) onDragStart?.();
+          if (e.button === 0)
+            pressPill(e.nativeEvent, {
+              onClick: () => setOpen((o) => !o),
+              onDrag: () => onDragStart?.(),
+            });
         }}
       />
       {panel.mounted && (
@@ -177,6 +220,29 @@ function useTauriEvent<T>(name: string, initial: T): T {
   return value;
 }
 
+/**
+ * Whether the bar should be faded. It fades once it's been left alone for `FADE_AFTER`, and wakes up while
+ * `inUse` (hovered or panel open). A change in `alertKey` (a new mood or agent) wakes it for `ALERT_FOR`,
+ * so a faded bar never sleeps through you running out.
+ */
+function useFaded(inUse: boolean, alertKey: string): boolean {
+  const [idle, setIdle] = useState(false);
+  const [delay, setDelay] = useState(FADE_AFTER);
+  const [seen, setSeen] = useState({ inUse, alertKey });
+  // Wake up during render when something changed, so there's never a frame with the old state.
+  if (seen.inUse !== inUse || seen.alertKey !== alertKey) {
+    setDelay(seen.alertKey !== alertKey ? ALERT_FOR : FADE_AFTER);
+    setSeen({ inUse, alertKey });
+    setIdle(false);
+  }
+  useEffect(() => {
+    if (inUse) return;
+    const timer = setTimeout(() => setIdle(true), delay);
+    return () => clearTimeout(timer);
+  }, [inUse, alertKey, delay]);
+  return idle && !inUse;
+}
+
 /** Goes up by one every time the hotkey shows the bar. */
 function useShowCount(): number {
   const [count, setCount] = useState(0);
@@ -199,21 +265,35 @@ function useNow(): number {
   return now;
 }
 
-/** `value`, but it only turns on after `onDelay` ms and off after `offDelay` ms. Stops the panel flickering open on a quick pass. */
-function useDelayed(
-  value: boolean,
-  onDelay: number,
-  offDelay: number,
-): boolean {
-  const [delayed, setDelayed] = useState(value);
-  useEffect(() => {
-    const timer = setTimeout(
-      () => setDelayed(value),
-      value ? onDelay : offDelay,
-    );
-    return () => clearTimeout(timer);
-  }, [value, onDelay, offDelay]);
-  return delayed;
+/**
+ * Tells a click from a drag. A press that moves a few pixels, or is held a moment, becomes a drag. Anything
+ * shorter is a click. Once the drag starts, macOS takes over the mouse, so we stop listening.
+ */
+function pressPill(
+  down: MouseEvent,
+  handlers: { onClick: () => void; onDrag: () => void },
+) {
+  const startDrag = () => {
+    stop();
+    handlers.onDrag();
+  };
+  const move = (e: MouseEvent) => {
+    const dx = e.screenX - down.screenX;
+    const dy = e.screenY - down.screenY;
+    if (Math.hypot(dx, dy) >= DRAG_DISTANCE) startDrag();
+  };
+  const up = () => {
+    stop();
+    handlers.onClick();
+  };
+  const timer = setTimeout(startDrag, DRAG_HOLD);
+  function stop() {
+    clearTimeout(timer);
+    window.removeEventListener("mousemove", move);
+    window.removeEventListener("mouseup", up);
+  }
+  window.addEventListener("mousemove", move);
+  window.addEventListener("mouseup", up);
 }
 
 /** Keeps something mounted for `exitMs` after it closes, so it can animate out. */

@@ -393,7 +393,8 @@ mod tests {
     #[test]
     fn finds_rollout_files_in_nested_folders() {
         // Build a fake ~/.codex/sessions in a temporary folder.
-        let root = std::env::temp_dir().join(format!("statuspal-test-{}", std::process::id()));
+        let root =
+            std::env::temp_dir().join(format!("statuspal-test-codex-{}", std::process::id()));
         let day = root.join("2026").join("07").join("01");
         std::fs::create_dir_all(&day).unwrap();
         std::fs::write(day.join("rollout-2026-07-01T18-42-12-abc.jsonl"), "").unwrap();

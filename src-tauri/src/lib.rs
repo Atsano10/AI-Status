@@ -70,7 +70,9 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             bar::resize_bar,
             #[cfg(target_os = "macos")]
-            bar::hide_bar
+            bar::hide_bar,
+            #[cfg(target_os = "macos")]
+            bar::set_click_through
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

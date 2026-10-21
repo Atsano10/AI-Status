@@ -1,10 +1,17 @@
 // Dev-only page that draws every bar state with sample data (entry: gallery-main.tsx).
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { BarView } from "./Bar";
 import Panel from "./Panel";
 import Pill from "./Pill";
 import type { Prefs } from "./prefs";
-import { derivePill, type Orientation } from "./state";
+import Critter from "./Critter";
+import {
+  critterMood,
+  derivePill,
+  lastActivity,
+  type Mood,
+  type Orientation,
+} from "./state";
 import type { AgentId, LimitWindow, UsageSnapshot } from "./types";
 
 const NOW = Math.floor(Date.now() / 1000);
@@ -107,6 +114,61 @@ const SAMPLES: Sample[] = [
   },
 ];
 
+const SF =
+  '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif';
+const SF_ROUNDED =
+  'ui-rounded, "SF Pro Rounded", -apple-system, system-ui, sans-serif';
+
+/** Font candidates: `ui` for the text, `num` for the numbers. */
+const FONTS: { name: string; note: string; ui: string; num: string }[] = [
+  {
+    name: "A · Current",
+    note: "SF Pro + SF Pro Rounded numbers",
+    ui: SF,
+    num: SF_ROUNDED,
+  },
+  {
+    name: "B · All rounded",
+    note: "SF Pro Rounded everywhere",
+    ui: SF_ROUNDED,
+    num: SF_ROUNDED,
+  },
+  {
+    name: "C · Nunito",
+    note: "soft and friendly (the Figma stand-in)",
+    ui: '"Nunito", sans-serif',
+    num: '"Nunito", sans-serif',
+  },
+  {
+    name: "D · Geist",
+    note: "clean and modern",
+    ui: '"Geist Sans", sans-serif',
+    num: '"Geist Sans", sans-serif',
+  },
+  {
+    name: "E · JetBrains Mono",
+    note: "terminal look, like the agents",
+    ui: '"JetBrains Mono", monospace',
+    num: '"JetBrains Mono", monospace',
+  },
+  {
+    name: "F · Pixelify",
+    note: "pixel font to match the critters",
+    ui: '"Pixelify Sans", sans-serif',
+    num: '"Pixelify Sans", sans-serif',
+  },
+];
+
+const MOODS: Mood[] = [
+  "idle",
+  "working",
+  "nervous",
+  "alarm",
+  "cheer",
+  "sleep",
+  "confused",
+];
+
 export default function GalleryPage() {
   const [orientation, setOrientation] = useState<Orientation>("horizontal");
   const [live, setLive] = useState(0);
@@ -115,8 +177,8 @@ export default function GalleryPage() {
     <div className="gallery">
       <h1>StatusPal bar</h1>
       <p className="gallery-sub">
-        Every pill state, then the hover panel. The app uses these same
-        components; this page just feeds them sample data.
+        Every pill state, every critter mood, then the panel. The app uses these
+        same components; this page just feeds them sample data.
       </p>
 
       <section>
@@ -138,7 +200,12 @@ export default function GalleryPage() {
                 );
                 return (
                   <figure key={s.name}>
-                    <Pill view={view} orientation={o} />
+                    <Pill
+                      view={view}
+                      orientation={o}
+                      agent={s.agent}
+                      mood={critterMood(view, lastActivity(snap), NOW)}
+                    />
                     {o === "horizontal" && (
                       <figcaption>
                         <b>{s.name}</b> {s.note}
@@ -153,7 +220,74 @@ export default function GalleryPage() {
       </section>
 
       <section>
-        <h2>Hover panel</h2>
+        <h2>Fonts</h2>
+        <p className="gallery-sub">
+          The same pill and panel in each candidate font. Pick a letter.
+        </p>
+        <div className="gallery-fonts">
+          {FONTS.map((f) => {
+            const sample = SAMPLES[0];
+            const snap = sample.snapshots[0];
+            const view = derivePill(snap, sample.agent, "5h", false, NOW);
+            return (
+              <figure
+                key={f.name}
+                className="gallery-font"
+                style={
+                  {
+                    "--font-ui": f.ui,
+                    "--font-num": f.num,
+                  } as CSSProperties
+                }
+              >
+                <figcaption>
+                  <b>{f.name}</b> {f.note}
+                </figcaption>
+                <div className="stage stage--horizontal">
+                  <Pill
+                    view={view}
+                    orientation="horizontal"
+                    agent={sample.agent}
+                    mood="idle"
+                  />
+                  <Panel
+                    snapshots={sample.snapshots}
+                    agent={sample.agent}
+                    now={NOW}
+                    prefs={base}
+                    paused={false}
+                    onPrefs={() => {}}
+                    onHide={() => {}}
+                    onQuit={() => {}}
+                    closing={false}
+                  />
+                </div>
+              </figure>
+            );
+          })}
+        </div>
+      </section>
+
+      <section>
+        <h2>Critters</h2>
+        <div className="gallery-critters">
+          {(["Claude", "Codex"] as const).map((agent) => (
+            <div key={agent} className="gallery-row">
+              {MOODS.map((mood) => (
+                <figure key={mood} className="gallery-critter">
+                  <Critter agent={agent} mood={mood} />
+                  <figcaption>
+                    <b>{mood}</b> {agent}
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h2>Panel</h2>
         <div className="gallery-panels">
           {[SAMPLES[0], SAMPLES[3], SAMPLES[5], SAMPLES[6], SAMPLES[8]].map(
             (s) => (
@@ -181,7 +315,8 @@ export default function GalleryPage() {
       <section>
         <h2>Try it</h2>
         <p className="gallery-sub">
-          Hover the pill. The ☰ menu and pause buttons work here too.
+          Click the pill to open the panel, click again to close it. The ☰ menu
+          and pause buttons work here too.
         </p>
         <div className="gallery-controls">
           <select

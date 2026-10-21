@@ -1,4 +1,4 @@
-//! The 🐾 in the menu bar. With no Dock icon and no main window, it's the only always-visible part of the app.
+//! The StatusPal logo in the menu bar. With no Dock icon and no main window, it's the only always-visible part of the app.
 
 use tauri::AppHandle;
 use tauri::menu::{Menu, MenuItem};
@@ -13,7 +13,10 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
     let menu = Menu::with_items(app, &[&toggle, &quit])?;
 
     TrayIconBuilder::with_id("statuspal")
-        .title("🐾")
+        // 36×36 (18pt @2x) black-on-clear pixel pal, drawn from icons/tray.svg. As a "template" image,
+        // macOS recolors it to match the menu bar (black on light, white on dark).
+        .icon(tauri::include_image!("icons/tray.png"))
+        .icon_as_template(true)
         .tooltip("StatusPal")
         .menu(&menu)
         .on_menu_event(|app, event| match event.id.as_ref() {

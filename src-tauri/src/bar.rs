@@ -13,13 +13,13 @@ use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut,
 const BAR_LABEL: &str = "bar";
 
 /// Starting size: a horizontal pill. The page resizes the window to fit as soon as it draws (`resize_bar`).
-const START_WIDTH: f64 = 218.0;
-const START_HEIGHT: f64 = 32.0;
+const START_WIDTH: f64 = 392.0;
+const START_HEIGHT: f64 = 54.0;
 
 /// How often we check whether the mouse is over the bar while it's showing.
-const HOVER_POLL: Duration = Duration::from_millis(80);
+const HOVER_POLL: Duration = Duration::from_millis(100);
 
-/// Whether the bar is showing. Read by the hover thread so it does nothing while the bar is hidden.
+/// Whether the bar is showing. The hover thread does nothing while it's hidden.
 static VISIBLE: AtomicBool = AtomicBool::new(false);
 /// Whether the mouse was over the bar on the last check, so we only emit when it changes.
 static HOVERED: AtomicBool = AtomicBool::new(false);
@@ -118,6 +118,10 @@ pub fn toggle_bar(app: &AppHandle) {
         panel.hide();
         VISIBLE.store(false, Ordering::Relaxed);
     } else {
+        // A bar hidden while faded would otherwise come back click-through.
+        if let Some(window) = app.get_webview_window(BAR_LABEL) {
+            let _ = window.set_ignore_cursor_events(false);
+        }
         panel.show();
         VISIBLE.store(true, Ordering::Relaxed);
         // Tell the bar's page to fetch fresh numbers.
@@ -133,7 +137,7 @@ pub fn hide_bar(app: AppHandle) {
     }
 }
 
-/// Sizes the window to what the page draws (the pill, plus the panel while you hover), keeping the top-left
+/// Sizes the window to what the page draws (the pill, plus the panel while it's open), keeping the top-left
 /// corner where it is. The window is exactly that size so the empty space around it doesn't block clicks.
 ///
 /// Not `async`, so Tauri runs it on the main thread, which AppKit requires.
@@ -154,16 +158,28 @@ pub fn resize_bar(app: AppHandle, width: f64, height: f64) {
     window.invalidateShadow();
 }
 
-/// The webview gets no mouse-move events while the bar isn't the key window, and it never is. So we check
-/// the mouse position ourselves while the bar is showing and tell the page with `bar-hover`.
+/// While the bar is faded, clicks go through it to whatever is underneath. Hovering wakes it back up (the page
+/// turns this off again), so you can still click it.
+#[tauri::command]
+pub fn set_click_through(app: AppHandle, enabled: bool) {
+    if let Some(window) = app.get_webview_window(BAR_LABEL) {
+        let _ = window.set_ignore_cursor_events(enabled);
+    }
+    // The shadow follows the page's opacity, so redraw it for the faded (or unfaded) look.
+    if let Ok(panel) = app.get_webview_panel(BAR_LABEL) {
+        panel.as_panel().invalidateShadow();
+    }
+}
+
+/// The webview gets no mouse-move events while the bar isn't the key window, and it never is. So while the bar
+/// is showing, we check the mouse position ourselves and tell the page with `bar-hover`. This keeps working
+/// while the bar is click-through, which is how hovering wakes a faded bar.
 fn watch_hover(app: AppHandle) {
     thread::spawn(move || {
         loop {
             thread::sleep(HOVER_POLL);
             if !VISIBLE.load(Ordering::Relaxed) {
-                if HOVERED.swap(false, Ordering::Relaxed) {
-                    let _ = app.emit_to(BAR_LABEL, "bar-hover", false);
-                }
+                HOVERED.store(false, Ordering::Relaxed);
                 continue;
             }
             // AppKit calls must run on the main thread.
@@ -173,7 +189,8 @@ fn watch_hover(app: AppHandle) {
                     return;
                 };
                 let frame = panel.as_panel().frame();
-                let mouse = objc2_app_kit::NSEvent::mouseLocation(); // same bottom-left screen coordinates as `frame`
+                // Same bottom-left screen coordinates as `frame`.
+                let mouse = objc2_app_kit::NSEvent::mouseLocation();
                 let inside = mouse.x >= frame.origin.x
                     && mouse.x <= frame.origin.x + frame.size.width
                     && mouse.y >= frame.origin.y

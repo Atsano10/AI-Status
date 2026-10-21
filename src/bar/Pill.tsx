@@ -1,15 +1,26 @@
 import type { CSSProperties, MouseEventHandler } from "react";
-import { until, type Orientation, type PillView } from "./state";
+import Critter from "./Critter";
+import { until, type Mood, type Orientation, type PillView } from "./state";
+import type { AgentId } from "./types";
 
 interface PillProps {
   view: PillView;
   orientation: Orientation;
-  /** Mouse down on the pill starts dragging the window (see Bar.tsx). */
+  /** Whose critter to draw. `null` shows the paw placeholder. */
+  agent: AgentId | null;
+  mood: Mood;
+  /** Mouse down on the pill: a click toggles the panel, a press-and-move drags the window (see Bar.tsx). */
   onMouseDown?: MouseEventHandler;
 }
 
 /** The floating bar itself: critter │ track │ window + %. Matches the "Pill" component in Figma. */
-export default function Pill({ view, orientation, onMouseDown }: PillProps) {
+export default function Pill({
+  view,
+  orientation,
+  agent,
+  mood,
+  onMouseDown,
+}: PillProps) {
   const vertical = orientation === "vertical";
   const pct = fillPct(view);
   const level =
@@ -26,7 +37,7 @@ export default function Pill({ view, orientation, onMouseDown }: PillProps) {
       onMouseDown={onMouseDown}
     >
       <span className="critter-slot" aria-hidden>
-        <PawIcon />
+        {agent ? <Critter agent={agent} mood={mood} /> : <PawIcon />}
       </span>
       <span className="track" aria-hidden>
         <span className="fill" />
@@ -96,10 +107,10 @@ function fillPct(view: PillView): number {
   }
 }
 
-/** Placeholder until the critters are designed. */
+/** Shown when no agent is active yet. */
 function PawIcon() {
   return (
-    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+    <svg width="34" height="34" viewBox="0 0 28 28" fill="none">
       <circle
         cx="14"
         cy="14"

@@ -25,31 +25,41 @@
 
   /* Agent accents (the critter colours) */
   --agent-claude: #e8835f;
-  --agent-codex: #6fd6c4;
+  --agent-codex: #5a73f0;
 
   /* Shape & spacing */
-  --radius-pill: 16px;
+  --radius-pill: 27px;
   --radius-panel: 16px;
-  --radius-track: 3px;
+  --radius-track: 4px;
   --space-xs: 4px;
   --space-sm: 8px;
   --space-md: 12px;
   --space-lg: 16px;
 
   /* Sizes */
-  --pill-height: 32px; /* same as the MacBook notch */
-  --pill-width-vertical: 36px;
-  --critter-size: 28px;
-  --track-length: 96px;
-  --track-thickness: 6px;
-  --label-width: 64px; /* fixed, so the pill doesn't jump as numbers change */
-  --panel-width: 272px;
+  --pill-height: 54px; /* the 40px critter plus ~5px above and below */
+  --pill-width-vertical: 52px;
+  --critter-width: 48px;
+  --critter-height: 40px;
+  --track-length: 132px; /* vertical only; horizontal fills the pill */
+  --track-thickness: 8px;
+  --bar-width: 392px; /* the pill, and the panel under it */
+  --panel-width: var(--bar-width);
+
+  /* Type scale */
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-md: 13px;
+  --text-lg: 15px;
 
   /* Type: the real Apple fonts (Figma shows Inter / Nunito as stand-ins) */
   --font-ui:
     -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
   --font-num:
     ui-rounded, "SF Pro Rounded", -apple-system, system-ui, sans-serif;
+
+  /* How visible the bar is once it fades (Bar.tsx useFaded) */
+  --faded-opacity: 0.4;
 
   /* Motion */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);

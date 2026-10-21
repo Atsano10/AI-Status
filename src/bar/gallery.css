@@ -53,13 +53,13 @@ body {
   gap: 24px 20px;
 }
 .gallery-row--horizontal figure {
-  width: 210px;
+  width: max-content;
 }
 .gallery-row--vertical {
   gap: 20px;
 }
 .gallery-row--vertical figure {
-  width: 210px;
+  width: 120px;
   align-items: flex-start;
 }
 .gallery-panels {
@@ -102,4 +102,30 @@ body {
 .gallery-live--side {
   top: 80px;
   left: 12px;
+}
+.gallery-critters {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.gallery-critter {
+  align-items: center;
+  padding: 12px 10px 8px;
+  border-radius: 12px;
+  background: var(--surface-pill);
+}
+.gallery-critter .critter {
+  width: 96px;
+  height: 80px;
+}
+.gallery-fonts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px 24px;
+}
+.gallery-font {
+  font-family: var(--font-ui);
+}
+.gallery-font figcaption {
+  font-family: -apple-system, system-ui, sans-serif;
 }
