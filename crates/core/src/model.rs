@@ -1,13 +1,13 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 pub enum AgentId {
     Claude,
     Codex,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct TokenUsage {
     pub input: u64,
     pub output: u64,
@@ -17,17 +17,34 @@ pub struct TokenUsage {
 }
 
 impl TokenUsage {
+    /// The bigger of each number. When the same reply is logged twice, the later line has the final counts.
+    pub fn max(self, other: TokenUsage) -> TokenUsage {
+        TokenUsage {
+            input: self.input.max(other.input),
+            output: self.output.max(other.output),
+            cache_read: self.cache_read.max(other.cache_read),
+            cache_write: self.cache_write.max(other.cache_write),
+            reasoning: self.reasoning.max(other.reasoning),
+        }
+    }
+
     pub fn effective(&self) -> u64 {
         self.input + self.output + self.cache_write + (self.cache_read / 10)
     }
 }
 
+/// One reply (Claude) or turn (Codex) and the tokens it used.
 #[derive(Debug, Clone, PartialEq)]
 pub struct UsageEvent {
     pub agent: AgentId,
+    /// Which reply this is. An agent can log the same reply more than once (Claude writes one line per part
+    /// of a reply), and the Tracker keeps one event per id.
+    pub id: String,
     pub ts: i64,
     pub session_id: String,
     pub model: Option<String>,
+    /// The reasoning effort it ran at, e.g. `"high"` (Claude) or `"xhigh"` (Codex).
+    pub effort: Option<String>,
     pub tokens: TokenUsage,
 }
 

@@ -14,14 +14,14 @@ use std::time::Duration;
 
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 
-use crate::adapters::claude::statusline;
+use crate::adapters::claude::{statusline, transcripts};
 use crate::adapters::codex;
 
 /// How long the files must stay quiet before we re-read them. One save can fire several events
 /// (write the temp file, then rename it over the real one), and this turns them into one update.
 const QUIET: Duration = Duration::from_millis(300);
 
-/// Starts watching Claude's statusLine folder and Codex's sessions folder, and calls `on_change` on a
+/// Starts watching Claude's statusLine folder and chat logs and Codex's sessions folder, and calls `on_change` on a
 /// background thread after each burst of changes.
 ///
 /// Keep the returned watcher alive for as long as you want updates: when it's dropped, watching stops.
@@ -49,6 +49,13 @@ pub fn spawn(on_change: impl Fn() + Send + 'static) -> notify::Result<Recommende
         watcher.watch(dir, RecursiveMode::NonRecursive)?;
     }
 
+    // Claude Code's chat logs: one folder per project, new sessions and subagents land below them.
+    if let Some(dir) = transcripts::projects_dir()
+        && dir.is_dir()
+    {
+        watcher.watch(&dir, RecursiveMode::Recursive)?;
+    }
+
     // Codex: new sessions land in new year/month/day folders, so watch everything below. Skip it if
     // Codex isn't installed.
     if let Some(dir) = codex::sessions_dir()
@@ -66,11 +73,12 @@ pub fn spawn(on_change: impl Fn() + Send + 'static) -> notify::Result<Recommende
     Ok(watcher)
 }
 
-/// True for the files we read: Claude's statusLine JSON and Codex's `rollout-*.jsonl` logs.
+/// True for the files we read: Claude's statusLine JSON and chat logs, and Codex's `rollout-*.jsonl` logs.
 /// Everything else in those folders (the `.json.tmp` file, folders, other files) is ignored.
 fn is_relevant(path: &Path) -> bool {
     path.file_name() == Some(std::ffi::OsStr::new(statusline::FILE_NAME))
         || codex::is_rollout_file(path)
+        || transcripts::is_transcript(path)
 }
 
 /// Waits for the next burst of messages and swallows all of it.

@@ -1,11 +1,10 @@
-use std::collections::HashMap;
 use std::io;
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
 use crate::model::{AgentId, LimitWindow, TokenUsage, UsageEvent};
-use crate::tail::Tail;
+use crate::tail::Follower;
 
 /// One line of a rollout file.
 #[derive(Debug, Deserialize)]
@@ -27,6 +26,8 @@ struct Payload {
     id: Option<String>,
     /// Model name, on `turn_context` lines.
     model: Option<String>,
+    /// Reasoning effort (`"low"` … `"xhigh"`), on `turn_context` lines.
+    effort: Option<String>,
     /// Token totals, on `token_count` lines. Sometimes `null`.
     info: Option<TokenInfo>,
     /// Your Codex limit, on `token_count` lines.
@@ -149,6 +150,7 @@ fn parse_timestamp(ts: &str) -> Option<i64> {
 pub struct SessionParser {
     session_id: String,
     model: Option<String>,
+    effort: Option<String>,
     prev_total: Option<RawUsage>,
     latest_limit: Option<LimitWindow>,
 }
@@ -181,6 +183,9 @@ impl SessionParser {
                 if line.payload.model.is_some() {
                     self.model = line.payload.model;
                 }
+                if line.payload.effort.is_some() {
+                    self.effort = line.payload.effort;
+                }
                 None
             }
             "event_msg" if line.payload.kind.as_deref() == Some("token_count") => {
@@ -198,9 +203,16 @@ impl SessionParser {
 
                 Some(UsageEvent {
                     agent: AgentId::Codex,
+                    // The running total only ever grows, so it names this turn within the session.
+                    id: format!(
+                        "{}:{}",
+                        self.session_id,
+                        total.input_tokens + total.output_tokens
+                    ),
                     ts: ts?,
                     session_id: self.session_id.clone(),
                     model: self.model.clone(),
+                    effort: self.effort.clone(),
                     tokens: turn.to_token_usage(),
                 })
             }
@@ -239,62 +251,30 @@ const LOOKBACK_SECS: u64 = 31 * 24 * 3600;
 /// Follows every Codex session file, reading only what was added since last time (see `tail.rs`).
 #[derive(Debug, Default)]
 pub struct CodexReader {
-    files: HashMap<PathBuf, FileState>,
-}
-
-#[derive(Debug, Default)]
-struct FileState {
-    tail: Tail,
-    parser: SessionParser,
-    /// The newest turn we've handed out from this file, so a file that's rewritten doesn't count twice.
-    last_ts: i64,
+    files: Follower<SessionParser>,
 }
 
 impl CodexReader {
     /// The turns written since the last call. The first call reads every session from the last month.
+    /// A file that's read again from the top hands out its turns again; the Tracker keeps one per id.
     pub fn poll(&mut self, dir: &Path) -> Vec<UsageEvent> {
-        let Ok(files) = find_session_files(dir) else {
+        let Ok(paths) = find_session_files(dir) else {
             return Vec::new();
         };
         let mut events = Vec::new();
-        for path in files {
-            if !self.files.contains_key(&path) && !modified_within(&path, LOOKBACK_SECS) {
-                continue;
-            }
-            let state = self.files.entry(path.clone()).or_default();
-            let Ok(new) = state.tail.read(&path) else {
-                continue; // deleted or unreadable: try again next time
-            };
-            if new.restarted {
-                state.parser = SessionParser::default();
-            }
-            for line in &new.lines {
-                if let Some(event) = state.parser.feed(line)
-                    && event.ts > state.last_ts
-                {
-                    state.last_ts = event.ts;
-                    events.push(event);
-                }
-            }
-        }
+        self.files.poll(paths, LOOKBACK_SECS, |parser, line| {
+            events.extend(parser.feed(line));
+        });
         events
     }
 
     /// The newest limit reading across every file.
     pub fn latest_limit(&self) -> Option<LimitWindow> {
         self.files
-            .values()
-            .filter_map(|state| state.parser.latest_limit())
+            .states()
+            .filter_map(|parser| parser.latest_limit())
             .max_by_key(|limit| limit.observed_at)
     }
-}
-
-fn modified_within(path: &Path, secs: u64) -> bool {
-    std::fs::metadata(path)
-        .and_then(|meta| meta.modified())
-        .ok()
-        .and_then(|modified| modified.elapsed().ok())
-        .is_none_or(|age| age.as_secs() <= secs)
 }
 
 #[cfg(test)]
@@ -383,9 +363,11 @@ mod tests {
             events[0],
             UsageEvent {
                 agent: AgentId::Codex,
+                id: "test-session:1050".to_string(),
                 ts: 1782945793,
                 session_id: "test-session".to_string(),
                 model: Some("gpt-5.5".to_string()),
+                effort: Some("xhigh".to_string()),
                 tokens: TokenUsage {
                     input: 400, // 1000 - 600 cached
                     output: 50,

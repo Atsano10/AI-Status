@@ -6,7 +6,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use statuspal_core::adapters::claude::statusline;
 use statuspal_core::adapters::codex;
-use statuspal_core::model::LimitWindow;
+use statuspal_core::model::{AgentId, LimitWindow};
 use statuspal_core::tracker::Tracker;
 
 // Returning a Result from main lets us use `?`: any error stops the program and gets printed.
@@ -51,12 +51,19 @@ fn main() -> Result<(), Box<dyn Error>> {
     // The app's view: what the Tracker keeps (the last day), read with the same incremental reader the app uses.
     let mut tracker = Tracker::default();
     tracker.refresh(now);
-    let recent = tracker.events();
-    println!(
-        "Tracker · last 24h · {} turns · {} effective tokens",
-        recent.len(),
-        short(recent.iter().map(|e| e.tokens.effective()).sum())
-    );
+    for agent in [AgentId::Claude, AgentId::Codex] {
+        let recent: Vec<_> = tracker
+            .events()
+            .iter()
+            .filter(|e| e.agent == agent)
+            .collect();
+        println!(
+            "Tracker · {agent:?} · last 24h · {} replies · {} effective tokens · {} output",
+            recent.len(),
+            short(recent.iter().map(|e| e.tokens.effective()).sum()),
+            short(recent.iter().map(|e| e.tokens.output).sum())
+        );
+    }
 
     let statusline_path = statusline::statusline_file().ok_or("can't find your home folder")?;
     match statusline::read(&statusline_path) {

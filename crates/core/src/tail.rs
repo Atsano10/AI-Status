@@ -3,9 +3,10 @@
 //! The agents append to their logs after every turn, and the logs get big (tens of MB). Re-reading every
 //! file from the start on each change would be slow, so a `Tail` remembers how far it got.
 
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// How far we've read into one file.
 #[derive(Debug, Default)]
@@ -69,6 +70,62 @@ impl Tail {
             .collect();
         Ok(NewLines { lines, restarted })
     }
+}
+
+/// Follows a set of log files: a `Tail` for each, plus whatever the caller needs to remember per file (`S`,
+/// e.g. a parser that's halfway through a session).
+#[derive(Debug)]
+pub struct Follower<S> {
+    files: HashMap<PathBuf, (Tail, S)>,
+}
+
+impl<S> Default for Follower<S> {
+    fn default() -> Self {
+        Follower {
+            files: HashMap::new(),
+        }
+    }
+}
+
+impl<S: Default> Follower<S> {
+    /// Calls `each` with every new complete line in `paths`. A file we haven't read yet is skipped if it
+    /// wasn't changed in the last `lookback_secs` (it can't hold anything recent). A file that restarted
+    /// (see `NewLines`) gets a fresh `S`.
+    pub fn poll(
+        &mut self,
+        paths: impl IntoIterator<Item = PathBuf>,
+        lookback_secs: u64,
+        mut each: impl FnMut(&mut S, &str),
+    ) {
+        for path in paths {
+            if !self.files.contains_key(&path) && !modified_within(&path, lookback_secs) {
+                continue;
+            }
+            let (tail, state) = self.files.entry(path.clone()).or_default();
+            let Ok(new) = tail.read(&path) else {
+                continue; // deleted or unreadable: try again next time
+            };
+            if new.restarted {
+                *state = S::default();
+            }
+            for line in &new.lines {
+                each(state, line);
+            }
+        }
+    }
+
+    /// What we remember for each file.
+    pub fn states(&self) -> impl Iterator<Item = &S> {
+        self.files.values().map(|(_, state)| state)
+    }
+}
+
+fn modified_within(path: &Path, secs: u64) -> bool {
+    std::fs::metadata(path)
+        .and_then(|meta| meta.modified())
+        .ok()
+        .and_then(|modified| modified.elapsed().ok())
+        .is_none_or(|age| age.as_secs() <= secs)
 }
 
 #[cfg(unix)]

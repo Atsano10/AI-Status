@@ -32,11 +32,7 @@ pub enum BridgeStatus {
 
 /// `~/.claude/settings.json`, or the folder in `CLAUDE_CONFIG_DIR` if you set one.
 pub fn claude_settings_file() -> Option<PathBuf> {
-    let dir = match std::env::var_os("CLAUDE_CONFIG_DIR") {
-        Some(dir) => PathBuf::from(dir),
-        None => std::env::home_dir()?.join(".claude"),
-    };
-    Some(dir.join("settings.json"))
+    super::config_dir().map(|dir| dir.join("settings.json"))
 }
 
 pub fn chain_file() -> Option<PathBuf> {
