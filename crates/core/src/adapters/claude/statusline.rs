@@ -19,10 +19,41 @@ pub const FILE_NAME: &str = "claude-statusline.json";
 
 /// Where our statusLine script saves the JSON. `None` if we can't find your home folder.
 pub fn statusline_file() -> Option<PathBuf> {
-    std::env::home_dir().map(|home| {
-        home.join("Library/Application Support/com.atsano10.statuspal")
-            .join(FILE_NAME)
-    })
+    crate::app_dir().map(|dir| dir.join(FILE_NAME))
+}
+
+/// What Claude Code runs as its status line (`statuspal --statusline`, or the `statuspal-statusline` program):
+/// saves the JSON from stdin for the app, then prints one line. If you had a status line before StatusPal
+/// (see `bridge.rs`), that's the line you see; otherwise ours, e.g. `Opus 5.5 · 5h 8% (3h 12m)`.
+///
+/// It must never crash or hang: if anything fails we still print a line, so Claude Code's status line keeps working.
+pub fn run_bridge() {
+    use std::io::Read;
+
+    let mut contents = String::new();
+    if std::io::stdin().read_to_string(&mut contents).is_err() {
+        println!("StatusPal: couldn't read stdin");
+        return;
+    }
+
+    // eprintln goes to stderr, which Claude Code ignores, so a failed save doesn't clutter the status line.
+    match statusline_file() {
+        Some(path) => {
+            if let Err(e) = save(&path, &contents) {
+                eprintln!("StatusPal: couldn't save {}: {e}", path.display());
+            }
+        }
+        None => eprintln!("StatusPal: can't find your home folder"),
+    }
+
+    let line = super::bridge::run_chained(&contents).unwrap_or_else(|| {
+        let now = std::time::SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+        summary(&contents, now)
+    });
+    println!("{line}");
 }
 
 #[derive(Debug, Deserialize)]

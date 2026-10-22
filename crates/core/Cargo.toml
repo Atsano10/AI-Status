@@ -7,9 +7,12 @@ edition = "2024"
 chrono = { version = "0.4.45", default-features = false, features = ["std"] }
 notify = "8.2.0"
 serde = { version = "1.0.229", features = ["derive"] }
-serde_json = "1.0.154"
+serde_json = { version = "1.0.154", features = ["preserve_order"] }
 
 # The command Claude Code runs for its status line (src/bin/statusline.rs).
 [[bin]]
 name = "statuspal-statusline"
 path = "src/bin/statusline.rs"
+
+[dev-dependencies]
+ts-rs = { version = "12.0.1", features = ["serde-compat"] }

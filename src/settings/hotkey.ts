@@ -1,7 +1,9 @@
 // Hotkeys as Tauri writes them ("Control+Alt+Space") and as the Mac shows them (⌃⌥Space).
 // Rust checks and registers them (src-tauri/src/hotkey.rs).
 
-export type HotkeyError = "invalid" | "needsModifier" | "reserved" | "taken";
+import type { HotkeyError } from "../bindings/HotkeyError";
+
+export type { HotkeyError };
 
 export const DEFAULT_HOTKEY = "Control+Alt+Space";
 

@@ -6,6 +6,8 @@ use std::sync::Mutex;
 
 use serde_json::Value;
 use statuspal_core::model::AgentId;
+#[cfg(target_os = "macos")]
+use statuspal_core::settings::BarPosition;
 use statuspal_core::settings::{self, Settings};
 use tauri::{AppHandle, Emitter, Manager};
 
@@ -35,6 +37,20 @@ pub fn set_pinned(app: &AppHandle, pinned: Option<AgentId>) {
     let _ = replace(app, |old| {
         Ok(Settings {
             pinned,
+            ..old.clone()
+        })
+    });
+}
+
+/// Remembers where the bar was left on a display, and that it's the display it was on last.
+#[cfg(target_os = "macos")]
+pub fn set_bar_position(app: &AppHandle, display: String, spot: BarPosition) {
+    let _ = replace(app, |old| {
+        let mut bar_positions = old.bar_positions.clone();
+        bar_positions.insert(display.clone(), spot);
+        Ok(Settings {
+            bar_positions,
+            bar_display: Some(display),
             ..old.clone()
         })
     });

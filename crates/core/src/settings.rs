@@ -2,11 +2,12 @@
 //!
 //! ```json
 //! {"hotkey": "Control+Alt+Space", "behaviour": "fade", "peekSeconds": 4, "orientation": "horizontal", "barShows": "5h",
-//!  "pinned": null}
+//!  "pinned": null, "barPositions": {"Built-in Retina Display": {"x": 548, "y": 6}}, "barDisplay": "Built-in Retina Display"}
 //! ```
 //!
 //! Any field can be missing (it gets its default), so files from older versions still load.
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -21,6 +22,7 @@ pub const FILE_NAME: &str = "settings.json";
 
 /// What the bar does once the hotkey shows it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "lowercase")]
 pub enum Behaviour {
     /// Stays fully visible until you press the hotkey again.
@@ -32,6 +34,7 @@ pub enum Behaviour {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "lowercase")]
 pub enum Orientation {
     Horizontal,
@@ -40,6 +43,7 @@ pub enum Orientation {
 
 /// Which window the pill shows when an agent has two.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 pub enum BarShows {
     #[serde(rename = "5h")]
     FiveHour,
@@ -47,7 +51,17 @@ pub enum BarShows {
     Week,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// Where the bar sits on one display: its top-left corner, in points from the top-left of the display's
+/// usable area (below the menu bar).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
+pub struct BarPosition {
+    pub x: f64,
+    pub y: f64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 // `default`: a field missing from the file takes its value from `Settings::default()`.
 // `camelCase`: `peek_seconds` in Rust is `peekSeconds` in the JSON, which is what the TypeScript side expects.
 #[serde(default, rename_all = "camelCase")]
@@ -61,6 +75,11 @@ pub struct Settings {
     pub bar_shows: BarShows,
     /// The agent pinned from the tray's "Pin agent" menu. `None` is Auto (the rules in `detect.rs` decide).
     pub pinned: Option<AgentId>,
+    /// Where you left the bar on each display, by display name. A display we haven't seen gets the default
+    /// spot (top centre, under the notch).
+    pub bar_positions: BTreeMap<String, BarPosition>,
+    /// The display the bar was on last, so it comes back there if that display is still connected.
+    pub bar_display: Option<String>,
 }
 
 impl Default for Settings {
@@ -72,6 +91,8 @@ impl Default for Settings {
             orientation: Orientation::Horizontal,
             bar_shows: BarShows::FiveHour,
             pinned: None,
+            bar_positions: BTreeMap::new(),
+            bar_display: None,
         }
     }
 }
@@ -97,10 +118,7 @@ impl Settings {
 
 /// Where the settings live. `None` if we can't find your home folder.
 pub fn settings_file() -> Option<PathBuf> {
-    std::env::home_dir().map(|home| {
-        home.join("Library/Application Support/com.atsano10.statuspal")
-            .join(FILE_NAME)
-    })
+    crate::app_dir().map(|dir| dir.join(FILE_NAME))
 }
 
 /// Reads the settings from `path`. A missing or broken file gives the defaults, so a bad edit never stops
@@ -162,6 +180,11 @@ mod tests {
             orientation: Orientation::Vertical,
             bar_shows: BarShows::Week,
             pinned: Some(AgentId::Codex),
+            bar_positions: BTreeMap::from([(
+                "Studio Display".into(),
+                BarPosition { x: 12.0, y: 6.0 },
+            )]),
+            bar_display: Some("Studio Display".into()),
         };
         save(&path, &settings).unwrap();
         assert_eq!(load(&path), settings);

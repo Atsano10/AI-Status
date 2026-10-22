@@ -3,8 +3,10 @@ use tauri::{Emitter, Manager};
 mod active;
 #[cfg(target_os = "macos")]
 mod bar;
+mod bridge;
 #[cfg(target_os = "macos")]
 mod hotkey;
+mod login;
 mod settings;
 mod settings_window;
 #[cfg(target_os = "macos")]
@@ -29,7 +31,14 @@ fn quit(app: tauri::AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let builder = tauri::Builder::default().plugin(tauri_plugin_opener::init());
+    let builder = tauri::Builder::default()
+        // First, so a second copy of StatusPal quits before doing anything. Opening it again shows Settings,
+        // since the bar and the menu bar icon are already there.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            settings_window::open(app)
+        }))
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_autostart::Builder::new().build());
 
     // The floating panel is macOS-only for now.
     #[cfg(target_os = "macos")]
@@ -78,12 +87,18 @@ pub fn run() {
             settings::get_settings,
             settings::update_settings,
             settings_window::open_settings,
+            login::get_launch_at_login,
+            login::set_launch_at_login,
+            bridge::get_bridge_status,
+            bridge::set_bridge_connected,
             #[cfg(target_os = "macos")]
             bar::resize_bar,
             #[cfg(target_os = "macos")]
             bar::hide_bar,
             #[cfg(target_os = "macos")]
             bar::set_click_through,
+            #[cfg(target_os = "macos")]
+            bar::drag_bar,
             #[cfg(target_os = "macos")]
             hotkey::set_hotkey,
             #[cfg(target_os = "macos")]

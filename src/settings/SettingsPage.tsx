@@ -1,8 +1,15 @@
-import type { ReactNode } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { useEffect, useState, type ReactNode } from "react";
+import type { BridgeStatus } from "../bindings/BridgeStatus";
 import type { Orientation, PreferredWindow } from "../bar/state";
 import type { AgentId } from "../bar/types";
 import ShortcutRecorder from "./ShortcutRecorder";
-import { updateSettings, useSettings } from "./useSettings";
+import {
+  updateSettings,
+  useSettings,
+  type Behaviour,
+  type Settings,
+} from "./useSettings";
 
 /** The settings window (src-tauri/src/settings_window.rs). Every change saves straight away. */
 export default function SettingsPage() {
@@ -18,6 +25,30 @@ export default function SettingsPage() {
       </Section>
 
       <Section title="Bar">
+        <Row label="When left alone" hint={behaviourHint(settings)}>
+          <Choice<Behaviour>
+            value={settings.behaviour}
+            options={[
+              ["toggle", "Stay"],
+              ["fade", "Fade"],
+              ["peek", "Hide"],
+            ]}
+            onChange={(behaviour) => updateSettings({ behaviour })}
+          />
+        </Row>
+        {settings.behaviour === "peek" && (
+          <Row label="Hide after">
+            <Choice<string>
+              value={String(settings.peekSeconds)}
+              options={[
+                ["2", "2 s"],
+                ["4", "4 s"],
+                ["8", "8 s"],
+              ]}
+              onChange={(s) => updateSettings({ peekSeconds: Number(s) })}
+            />
+          </Row>
+        )}
         <Row label="Orientation">
           <Choice<Orientation>
             value={settings.orientation}
@@ -61,7 +92,142 @@ export default function SettingsPage() {
           />
         </Row>
       </Section>
+
+      <Section title="Claude Code">
+        <ClaudeBridge />
+      </Section>
+
+      <Section title="General">
+        <LaunchAtLogin />
+      </Section>
     </main>
+  );
+}
+
+function behaviourHint(settings: Settings): string {
+  switch (settings.behaviour) {
+    case "toggle":
+      return "Stays until you press the hotkey again.";
+    case "fade":
+      return "Fades after a few seconds. Hover to wake it.";
+    case "peek":
+      return `Hides after ${settings.peekSeconds} seconds. Hovering keeps it up.`;
+  }
+}
+
+/**
+ * Connects StatusPal to Claude Code's status line (src-tauri/src/bridge.rs). That edits
+ * ~/.claude/settings.json, so Connect always asks first.
+ */
+function ClaudeBridge() {
+  const [status, setStatus] = useState<BridgeStatus | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Check again whenever the window comes forward, in case the file was edited by hand.
+    const check = () =>
+      invoke<BridgeStatus>("get_bridge_status").then(setStatus);
+    check();
+    window.addEventListener("focus", check);
+    return () => window.removeEventListener("focus", check);
+  }, []);
+
+  const set = (connected: boolean) =>
+    invoke<BridgeStatus>("set_bridge_connected", { connected })
+      .then((s) => {
+        setStatus(s);
+        setError(null);
+      })
+      .catch((e) => setError(String(e)))
+      .finally(() => setConfirming(false));
+
+  if (status === null) return null;
+
+  if (confirming)
+    return (
+      <Row
+        label="Connect Claude Code?"
+        hint={
+          status === "otherStatusLine"
+            ? "This edits ~/.claude/settings.json (a backup is saved next to it). Your current status line keeps showing."
+            : "This edits ~/.claude/settings.json (a backup is saved next to it first)."
+        }
+      >
+        <div className="settings-buttons">
+          <button
+            className="settings-button"
+            onClick={() => setConfirming(false)}
+          >
+            Cancel
+          </button>
+          <button
+            className="settings-button settings-button--primary"
+            onClick={() => set(true)}
+          >
+            Connect
+          </button>
+        </div>
+      </Row>
+    );
+
+  return (
+    <Row label="Claude limits" hint={error ?? bridgeHint(status)}>
+      {status === "connected" ? (
+        <div className="settings-buttons">
+          <span className="settings-status">
+            <span className="settings-status-dot" /> Connected
+          </span>
+          <button className="settings-button" onClick={() => set(false)}>
+            Remove
+          </button>
+        </div>
+      ) : (
+        <button
+          className="settings-button settings-button--primary"
+          onClick={() => setConfirming(true)}
+        >
+          {status === "broken" ? "Reconnect" : "Connect"}
+        </button>
+      )}
+    </Row>
+  );
+}
+
+function bridgeHint(status: BridgeStatus): string {
+  switch (status) {
+    case "connected":
+      return "Claude Code sends StatusPal your limits after every reply.";
+    case "notConnected":
+      return "Adds StatusPal as Claude Code's status line, so the bar gets your Claude limits.";
+    case "otherStatusLine":
+      return "Claude Code already has a status line. StatusPal keeps it and reads the limits alongside.";
+    case "broken":
+      return "StatusPal moved since it was connected. Reconnect to fix it.";
+  }
+}
+
+/** Open at login (src-tauri/src/login.rs). macOS keeps this one, not our settings file. */
+function LaunchAtLogin() {
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  useEffect(() => {
+    invoke<boolean>("get_launch_at_login").then(setEnabled);
+  }, []);
+  return (
+    <Row
+      label="Open at login"
+      hint="Start StatusPal when you log in to your Mac."
+    >
+      <Switch
+        checked={enabled ?? false}
+        disabled={enabled === null}
+        onChange={(on) =>
+          invoke<boolean>("set_launch_at_login", { enabled: on }).then(
+            setEnabled,
+          )
+        }
+      />
+    </Row>
   );
 }
 
@@ -103,5 +269,23 @@ function Choice<T extends string>(props: {
         </button>
       ))}
     </div>
+  );
+}
+
+function Switch(props: {
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <button
+      role="switch"
+      aria-checked={props.checked}
+      disabled={props.disabled}
+      className={`switch${props.checked ? " is-on" : ""}`}
+      onClick={() => props.onChange(!props.checked)}
+    >
+      <span className="switch-knob" />
+    </button>
   );
 }

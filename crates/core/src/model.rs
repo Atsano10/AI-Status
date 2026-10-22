@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 pub enum AgentId {
     Claude,
     Codex,
@@ -32,10 +33,16 @@ pub struct UsageEvent {
 
 /// One rate-limit window, like "6% of your 30-day limit, resets Jul 31".
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 pub struct LimitWindow {
     pub used_pct: f64,
     pub window_minutes: u32,
+    /// Unix seconds.
+    // ts-rs would make i64 a TypeScript `bigint`, but JSON sends a plain number.
+    #[cfg_attr(test, ts(type = "number | null"))]
     pub resets_at: Option<i64>,
+    /// Unix seconds.
+    #[cfg_attr(test, ts(type = "number"))]
     pub observed_at: i64,
     /// True when the source rounds its numbers (Claude Code sends whole-number % and resets on the hour),
     /// so the bar shows "~6%" instead of claiming more precision than we have.
@@ -55,6 +62,7 @@ impl LimitWindow {
 /// Everything the bar shows for one agent. Grows later (tokens today, model, gait...).
 /// `Serialize` lets Tauri send it to the bar as JSON.
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 pub struct UsageSnapshot {
     pub agent: AgentId,
     /// 0, 1 or 2 limit bars.

@@ -369,6 +369,15 @@ button {
   line-height: 1.4;
   color: var(--text-secondary);
 }
+div.panel-note {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-sm);
+}
+div.panel-note p {
+  margin: 0;
+}
 
 .panel-divider {
   height: 1px;

@@ -1,6 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Panel from "./Panel";
 import Pill from "./Pill";
@@ -37,8 +36,8 @@ export default function Bar() {
       hovered={hovered}
       onClickThrough={setClickThrough}
       onResize={resizeBar}
-      onDragStart={() => getCurrentWindow().startDragging()}
-      onHide={() => invoke("hide_bar")}
+      onDragStart={() => invoke("drag_bar")}
+      onHide={hideBar}
       onSettings={() => invoke("open_settings")}
       onQuit={() => invoke("quit")}
     />
@@ -51,6 +50,7 @@ const setClickThrough = (enabled: boolean) =>
   invoke("set_click_through", { enabled });
 const resizeBar = (width: number, height: number) =>
   invoke("resize_bar", { width, height });
+const hideBar = () => invoke("hide_bar");
 
 interface BarViewProps {
   snapshots: UsageSnapshot[];
@@ -77,8 +77,10 @@ const EXIT_ANIMATION = 140;
 /** A press that moves this far (px), or is held this long (ms), drags the bar instead of clicking it. */
 const DRAG_DISTANCE = 4;
 const DRAG_HOLD = 220;
-/** Left alone this long (ms), the bar fades so it's there when you glance at it but out of the way. */
+/** Fade: left alone this long (ms), the bar fades so it's there when you glance at it but out of the way. */
 const FADE_AFTER = 5000;
+/** Peek: how long the bar stays up when the settings don't say (the dev gallery). */
+const PEEK_SECONDS = 4;
 /** After something worth noticing (the critter's mood or agent changes), stay bright this long (ms). */
 const ALERT_FOR = 8000;
 /** Matches the fade-out transition in bar.css, so clicks pass through only once it's faded. */
@@ -111,8 +113,20 @@ export function BarView(props: BarViewProps) {
   const view = derivePill(snapshot, agent, prefs.barShows, paused, now);
   const mood = critterMood(view, lastActivity(snapshot), now);
 
-  // Fade when left alone. Never while the panel is open or the mouse is over the bar.
-  const faded = useFaded(open || (hovered ?? domHover), `${agent}|${mood}`);
+  // Left alone (panel closed, mouse elsewhere), Fade fades the bar and Peek hides it. Toggle does neither.
+  const behaviour = prefs.behaviour ?? "fade";
+  const idle = useIdle(
+    open || (hovered ?? domHover),
+    `${agent}|${mood}`,
+    behaviour === "peek"
+      ? (prefs.peekSeconds ?? PEEK_SECONDS) * 1000
+      : FADE_AFTER,
+  );
+  const faded = behaviour === "fade" && idle;
+  const { onHide } = props;
+  useEffect(() => {
+    if (behaviour === "peek" && idle) onHide?.();
+  }, [behaviour, idle, onHide]);
   useEffect(() => {
     if (!onClickThrough) return;
     if (!faded) {
@@ -249,18 +263,22 @@ function usePointerHover() {
 }
 
 /**
- * Whether the bar should be faded. It fades once it's been left alone for `FADE_AFTER`, and wakes up while
- * `inUse` (hovered or panel open). A change in `alertKey` (a new mood or agent) wakes it for `ALERT_FOR`,
- * so a faded bar never sleeps through you running out.
+ * Whether the bar has been left alone for `after` ms. It stops being idle while `inUse` (hovered or panel
+ * open). A change in `alertKey` (a new mood or agent) keeps it awake for at least `ALERT_FOR`, so a faded or
+ * peeking bar never sleeps through you running out.
  */
-function useFaded(inUse: boolean, alertKey: string): boolean {
+function useIdle(inUse: boolean, alertKey: string, after: number): boolean {
   const [idle, setIdle] = useState(false);
-  const [delay, setDelay] = useState(FADE_AFTER);
-  const [seen, setSeen] = useState({ inUse, alertKey });
+  const [delay, setDelay] = useState(after);
+  const [seen, setSeen] = useState({ inUse, alertKey, after });
   // Wake up during render when something changed, so there's never a frame with the old state.
-  if (seen.inUse !== inUse || seen.alertKey !== alertKey) {
-    setDelay(seen.alertKey !== alertKey ? ALERT_FOR : FADE_AFTER);
-    setSeen({ inUse, alertKey });
+  if (
+    seen.inUse !== inUse ||
+    seen.alertKey !== alertKey ||
+    seen.after !== after
+  ) {
+    setDelay(seen.alertKey !== alertKey ? Math.max(ALERT_FOR, after) : after);
+    setSeen({ inUse, alertKey, after });
     setIdle(false);
   }
   useEffect(() => {

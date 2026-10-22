@@ -58,7 +58,7 @@ export default function Panel(props: PanelProps) {
             </div>
           )}
           {agent && (!active || active.windows.length === 0) && (
-            <NoData agent={agent} />
+            <NoData agent={agent} onSettings={props.onSettings} />
           )}
           {!agent && (
             <p className="panel-note">
@@ -236,13 +236,31 @@ function OtherAgent({
   );
 }
 
-function NoData({ agent }: { agent: AgentId }) {
+function NoData({
+  agent,
+  onSettings,
+}: {
+  agent: AgentId;
+  onSettings?: () => void;
+}) {
+  if (agent === "Codex")
+    return (
+      <p className="panel-note">
+        No Codex numbers yet. They show up after your next Codex turn.
+      </p>
+    );
   return (
-    <p className="panel-note">
-      {agent === "Claude"
-        ? "No Claude numbers yet. They show up after your next Claude Code reply, once the StatusPal statusLine is installed."
-        : "No Codex numbers yet. They show up after your next Codex turn."}
-    </p>
+    <div className="panel-note">
+      <p>
+        No Claude numbers yet. Connect Claude Code in Settings, and they show up
+        after your next reply.
+      </p>
+      {onSettings && (
+        <button className="btn" onClick={onSettings}>
+          Open Settings
+        </button>
+      )}
+    </div>
   );
 }
 

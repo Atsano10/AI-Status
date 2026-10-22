@@ -5,10 +5,14 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::Duration;
 
-use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, WebviewUrl};
+use statuspal_core::placement::{self, Rect};
+use statuspal_core::settings::BarPosition;
+use tauri::{AppHandle, Emitter, LogicalPosition, Manager, Monitor, WebviewUrl};
 use tauri_nspanel::{
     CollectionBehavior, ManagerExt, PanelBuilder, PanelLevel, StyleMask, tauri_panel,
 };
+
+use crate::settings;
 
 const BAR_LABEL: &str = "bar";
 
@@ -18,6 +22,8 @@ const START_HEIGHT: f64 = 54.0;
 
 /// How often we check whether the mouse is over the bar while it's showing.
 const HOVER_POLL: Duration = Duration::from_millis(100);
+/// How often we check whether the mouse button is still down during a drag.
+const DRAG_POLL: Duration = Duration::from_millis(40);
 /// Quicker while the mouse is over the bar, so the page's hover highlights keep up with it.
 const POINTER_POLL: Duration = Duration::from_millis(30);
 
@@ -76,22 +82,118 @@ fn create_bar(app: &AppHandle) -> tauri::Result<()> {
         })
         .build()?;
 
-    place_top_center(app);
+    place(app);
     Ok(())
 }
 
-/// Puts the bar just under the menu bar, centred, which is where the notch is on MacBooks.
-fn place_top_center(app: &AppHandle) {
-    let (Some(window), Ok(Some(monitor))) =
-        (app.get_webview_window(BAR_LABEL), app.primary_monitor())
-    else {
+/// Puts the bar where you left it on the display it was on last. A display it hasn't been on yet gets the
+/// default spot: top centre, just under the menu bar (where the notch is on MacBooks).
+fn place(app: &AppHandle) {
+    let Some(window) = app.get_webview_window(BAR_LABEL) else {
         return;
     };
-    let area = monitor.work_area(); // the screen minus the menu bar and Dock, in physical pixels
-    let width = START_WIDTH * monitor.scale_factor();
-    let x = area.position.x as f64 + (area.size.width as f64 - width) / 2.0;
-    let y = area.position.y as f64 + 6.0 * monitor.scale_factor();
-    let _ = window.set_position(PhysicalPosition::new(x, y));
+    let saved = settings::get(app);
+    let monitors = app.available_monitors().unwrap_or_default();
+    let last = saved
+        .bar_display
+        .as_ref()
+        .and_then(|name| monitors.iter().find(|m| m.name() == Some(name)).cloned());
+    let Some(monitor) = last.or_else(|| app.primary_monitor().ok().flatten()) else {
+        return;
+    };
+
+    let area = usable_area(&monitor);
+    let bar = Rect {
+        x: 0.0,
+        y: 0.0,
+        width: START_WIDTH,
+        height: START_HEIGHT,
+    };
+    let (x, y) = match monitor
+        .name()
+        .and_then(|name| saved.bar_positions.get(name))
+    {
+        // `keep_inside` in case the display got smaller since.
+        Some(spot) => placement::keep_inside(
+            Rect {
+                x: area.x + spot.x,
+                y: area.y + spot.y,
+                ..bar
+            },
+            area,
+        ),
+        None => placement::top_center(START_WIDTH, area),
+    };
+    let _ = window.set_position(LogicalPosition::new(x, y));
+}
+
+/// A display's usable part (no menu bar, no Dock) in points, the same units `set_position` takes.
+fn usable_area(monitor: &Monitor) -> Rect {
+    let scale = monitor.scale_factor();
+    let area = monitor.work_area();
+    Rect {
+        x: area.position.x as f64 / scale,
+        y: area.position.y as f64 / scale,
+        width: area.size.width as f64 / scale,
+        height: area.size.height as f64 / scale,
+    }
+}
+
+/// Pressing and moving the pill (Bar.tsx). macOS moves the window while the mouse is down; once it's let go,
+/// the bar snaps to a nearby edge, corner or the notch, and its spot is saved for this display.
+#[tauri::command]
+pub fn drag_bar(app: AppHandle) {
+    let Some(window) = app.get_webview_window(BAR_LABEL) else {
+        return;
+    };
+    let _ = window.start_dragging();
+    thread::spawn(move || {
+        while objc2_app_kit::NSEvent::pressedMouseButtons() != 0 {
+            thread::sleep(DRAG_POLL);
+        }
+        let handle = app.clone();
+        let _ = app.run_on_main_thread(move || settle(&handle));
+    });
+}
+
+fn settle(app: &AppHandle) {
+    let Some(window) = app.get_webview_window(BAR_LABEL) else {
+        return;
+    };
+    let (Ok(Some(monitor)), Ok(position), Ok(size), Ok(scale)) = (
+        window.current_monitor(),
+        window.outer_position(),
+        window.outer_size(),
+        window.scale_factor(),
+    ) else {
+        return;
+    };
+    let bar = Rect {
+        x: position.x as f64 / scale,
+        y: position.y as f64 / scale,
+        width: size.width as f64 / scale,
+        height: size.height as f64 / scale,
+    };
+    let area = usable_area(&monitor);
+
+    // Hold ⌥ while dragging to place it freely.
+    let free = objc2_app_kit::NSEvent::modifierFlags_class()
+        .contains(objc2_app_kit::NSEventModifierFlags::Option);
+    let (x, y) = if free {
+        placement::keep_inside(bar, area)
+    } else {
+        placement::snap(bar, area)
+    };
+    if (x, y) != (bar.x, bar.y) {
+        let _ = window.set_position(LogicalPosition::new(x, y));
+    }
+    if let Some(name) = monitor.name() {
+        let spot = BarPosition {
+            x: x - area.x,
+            y: y - area.y,
+        };
+        settings::set_bar_position(app, name.clone(), spot);
+    }
 }
 
 /// Shows the bar if it's hidden, hides it if it's showing. Used by the hotkey and the menu bar menu.

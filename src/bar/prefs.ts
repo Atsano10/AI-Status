@@ -3,12 +3,17 @@
 // it stays in this webview's localStorage.
 import { useCallback, useState } from "react";
 import { updateSettings, useSettings } from "../settings/useSettings";
+import type { Behaviour } from "../bindings/Behaviour";
 import type { Orientation, PreferredWindow } from "./state";
 
 export interface Prefs {
   orientation: Orientation;
   /** Which window the pill shows when an agent has two. */
   barShows: PreferredWindow;
+  /** What the bar does when left alone (Toggle / Fade / Peek). Fade when left out (the dev gallery). */
+  behaviour?: Behaviour;
+  /** How long Peek keeps the bar up. */
+  peekSeconds?: number;
   /** The show/hide hotkey, e.g. "Control+Alt+Space". Changed only in the settings window. */
   hotkey?: string;
   /** Unix seconds when tracking resumes, `"manual"` for "until I resume", or null when not paused. */
@@ -47,6 +52,8 @@ export function usePrefs(): [Prefs | null, (change: Partial<Prefs>) => void] {
     orientation: settings.orientation,
     barShows: settings.barShows,
     hotkey: settings.hotkey,
+    behaviour: settings.behaviour,
+    peekSeconds: settings.peekSeconds,
     pausedUntil,
   };
   return [prefs, update];

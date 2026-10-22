@@ -10,6 +10,7 @@ use crate::{bar, settings};
 
 /// Why a shortcut can't be the hotkey. The settings window shows a message for each.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "camelCase")]
 pub enum HotkeyError {
     /// Not a key combo we can register.

@@ -29,3 +29,6 @@ jobs:
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
+      # `cargo test` regenerates src/bindings from the Rust types (ts-rs). If that changed anything, the
+      # committed TypeScript types were out of date.
+      - run: git diff --exit-code src/bindings
