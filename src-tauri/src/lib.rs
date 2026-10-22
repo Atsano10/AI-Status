@@ -36,6 +36,7 @@ pub fn run() {
             settings_window::open(app)
         }))
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_autostart::Builder::new().build());
 
     // The floating panel is macOS-only for now.

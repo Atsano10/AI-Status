@@ -3,14 +3,19 @@
 //! - when Claude or Codex writes new usage data (the file watcher)
 //! - as time passes, since the critter's gait depends on the last 10 minutes and falls asleep on its own
 //! - when you change the gait thresholds or hide a tip
+//!
+//! Each update also checks for notifications (crates/core/src/notify.rs): a limit getting close, running out,
+//! or resetting.
 
 use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use statuspal_core::model::UsageSnapshot;
+use statuspal_core::notify::Notifier;
 use statuspal_core::tracker::Tracker;
 use tauri::{AppHandle, Emitter, Listener, Manager};
+use tauri_plugin_notification::NotificationExt;
 
 use crate::settings;
 
@@ -21,6 +26,7 @@ struct UsageState {
     tracker: Mutex<Tracker>,
     /// What the bar was last sent, so an unchanged tick sends nothing.
     sent: Mutex<Vec<UsageSnapshot>>,
+    notifier: Mutex<Notifier>,
 }
 
 pub fn setup(app: &AppHandle) {
@@ -29,6 +35,7 @@ pub fn setup(app: &AppHandle) {
     app.manage(UsageState {
         tracker: Mutex::new(tracker),
         sent: Mutex::new(Vec::new()),
+        notifier: Mutex::new(Notifier::default()),
     });
 
     let handle = app.clone();
@@ -54,14 +61,35 @@ pub fn setup(app: &AppHandle) {
     app.listen_any("settings-changed", move |_| update(&handle));
 }
 
-/// Reads what's new and tells the bar, if anything it shows changed.
+/// Reads what's new, tells the bar if anything it shows changed, and sends any notifications.
 fn update(app: &AppHandle) {
     let snapshots = refresh(app);
     let state = app.state::<UsageState>();
+    notify(app, &state.notifier, &snapshots);
     let mut sent = state.sent.lock().unwrap();
     if *sent != snapshots {
         let _ = app.emit("limits-updated", &snapshots);
         *sent = snapshots;
+    }
+}
+
+/// Shows a notification for each limit that just got close, ran out, or reset. The `Notifier` keeps
+/// checking while notifications are off, so turning them on later doesn't fire for something old.
+fn notify(app: &AppHandle, notifier: &Mutex<Notifier>, snapshots: &[UsageSnapshot]) {
+    let notifications = notifier.lock().unwrap().check(snapshots, now_secs());
+    if !settings::get(app).notifications {
+        return;
+    }
+    for n in notifications {
+        if let Err(e) = app
+            .notification()
+            .builder()
+            .title(&n.title)
+            .body(&n.body)
+            .show()
+        {
+            eprintln!("can't show a notification: {e}");
+        }
     }
 }
 

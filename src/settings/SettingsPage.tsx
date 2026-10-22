@@ -247,6 +247,15 @@ export default function SettingsPage() {
       </Section>
 
       <Section title="General">
+        <Row
+          label="Notifications"
+          hint="When a limit reaches 80%, runs out, or resets after you were close."
+        >
+          <Switch
+            checked={settings.notifications}
+            onChange={(notifications) => updateSettings({ notifications })}
+          />
+        </Row>
         <LaunchAtLogin />
       </Section>
     </main>
