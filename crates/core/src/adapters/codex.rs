@@ -1,9 +1,11 @@
+use std::collections::HashMap;
 use std::io;
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
 use crate::model::{AgentId, LimitWindow, TokenUsage, UsageEvent};
+use crate::tail::Tail;
 
 /// One line of a rollout file.
 #[derive(Debug, Deserialize)]
@@ -133,24 +135,6 @@ pub fn find_session_files(dir: &Path) -> io::Result<Vec<PathBuf>> {
     Ok(files)
 }
 
-/// The newest limit reading across every session file in `dir`.
-pub fn read_latest_limit(dir: &Path) -> io::Result<Option<LimitWindow>> {
-    let mut latest: Option<LimitWindow> = None;
-    for file in find_session_files(dir)? {
-        let Ok(contents) = std::fs::read_to_string(&file) else {
-            continue;
-        };
-        if let Some(limit) = latest_limit(&contents)
-            && latest
-                .as_ref()
-                .is_none_or(|l| limit.observed_at > l.observed_at)
-        {
-            latest = Some(limit);
-        }
-    }
-    Ok(latest)
-}
-
 /// Turns an ISO timestamp like `2026-07-01T22:43:18.175Z` into Unix seconds.
 fn parse_timestamp(ts: &str) -> Option<i64> {
     chrono::DateTime::parse_from_rfc3339(ts)
@@ -158,85 +142,159 @@ fn parse_timestamp(ts: &str) -> Option<i64> {
         .map(|t| t.timestamp())
 }
 
-/// Reads a whole rollout file and returns one `UsageEvent` per turn.
-///
-/// Codex writes *running totals*, so each turn is "this total minus the previous one".
-/// Lines it can't use (messages, tool calls, broken lines) are skipped.
-pub fn parse_session(contents: &str) -> Vec<UsageEvent> {
-    let mut events = Vec::new();
-    let mut session_id = String::new();
-    let mut model: Option<String> = None;
-    let mut prev_total: Option<RawUsage> = None;
+/// Works through one rollout file a line at a time, remembering what it needs between lines: the session id,
+/// the model, and the last running total. Feed it lines as they arrive (`CodexReader` does), or a whole file
+/// at once (`parse_session`).
+#[derive(Debug, Default)]
+pub struct SessionParser {
+    session_id: String,
+    model: Option<String>,
+    prev_total: Option<RawUsage>,
+    latest_limit: Option<LimitWindow>,
+}
 
-    for raw_line in contents.lines() {
-        let Some(line) = parse_line(raw_line) else {
-            continue;
-        };
+impl SessionParser {
+    /// Reads one line. Returns the turn it finished, if it was a usage line with new usage.
+    ///
+    /// Codex writes *running totals*, so each turn is "this total minus the previous one". Lines it can't
+    /// use (messages, tool calls, broken lines) are skipped.
+    pub fn feed(&mut self, raw_line: &str) -> Option<UsageEvent> {
+        let line = parse_line(raw_line)?;
+        let ts = parse_timestamp(&line.timestamp);
+
+        // Limit readings ride along on usage lines. Lines are written in time order, so the last one wins.
+        if let (Some(window), Some(observed_at)) = (
+            line.payload.rate_limits.and_then(|limits| limits.primary),
+            ts,
+        ) {
+            self.latest_limit = Some(window.to_limit_window(observed_at));
+        }
 
         match line.kind.as_str() {
             "session_meta" => {
                 if let Some(id) = line.payload.id {
-                    session_id = id;
+                    self.session_id = id;
                 }
+                None
             }
             "turn_context" => {
                 if line.payload.model.is_some() {
-                    model = line.payload.model;
+                    self.model = line.payload.model;
                 }
+                None
             }
             "event_msg" if line.payload.kind.as_deref() == Some("token_count") => {
-                let Some(info) = line.payload.info else {
-                    continue;
-                };
-                let total = info.total_token_usage;
+                let total = line.payload.info?.total_token_usage;
 
                 // Codex sometimes repeats the previous total. That isn't a new turn.
-                if prev_total == Some(total) {
-                    continue;
+                if self.prev_total == Some(total) {
+                    return None;
                 }
-                let turn = match prev_total {
+                let turn = match self.prev_total {
                     Some(prev) => total.since(&prev),
                     None => total, // first turn of the session
                 };
-                prev_total = Some(total);
+                self.prev_total = Some(total);
 
-                let Some(ts) = parse_timestamp(&line.timestamp) else {
-                    continue;
-                };
-                events.push(UsageEvent {
+                Some(UsageEvent {
                     agent: AgentId::Codex,
-                    ts,
-                    session_id: session_id.clone(),
-                    model: model.clone(),
+                    ts: ts?,
+                    session_id: self.session_id.clone(),
+                    model: self.model.clone(),
                     tokens: turn.to_token_usage(),
-                });
+                })
             }
-            _ => {}
+            _ => None,
         }
     }
-    events
+
+    /// The newest limit reading seen so far.
+    pub fn latest_limit(&self) -> Option<LimitWindow> {
+        self.latest_limit.clone()
+    }
+}
+
+/// Reads a whole rollout file and returns one `UsageEvent` per turn.
+pub fn parse_session(contents: &str) -> Vec<UsageEvent> {
+    let mut parser = SessionParser::default();
+    contents
+        .lines()
+        .filter_map(|line| parser.feed(line))
+        .collect()
 }
 
 /// The newest rate-limit reading in a rollout file, if it has any.
-/// Lines are written in time order, so the last reading wins.
 pub fn latest_limit(contents: &str) -> Option<LimitWindow> {
-    let mut latest = None;
-
-    for raw_line in contents.lines() {
-        let Some(line) = parse_line(raw_line) else {
-            continue;
-        };
-        // `and_then` opens one Option and continues with another inside it:
-        // no `rate_limits` → None; `rate_limits` but no `primary` → None; otherwise the window.
-        let Some(window) = line.payload.rate_limits.and_then(|limits| limits.primary) else {
-            continue;
-        };
-        let Some(observed_at) = parse_timestamp(&line.timestamp) else {
-            continue;
-        };
-        latest = Some(window.to_limit_window(observed_at));
+    let mut parser = SessionParser::default();
+    for line in contents.lines() {
+        parser.feed(line);
     }
-    latest
+    parser.latest_limit()
+}
+
+/// Session files older than this are skipped the first time we look. Your Codex limit window is 30 days, so
+/// nothing older still matters.
+const LOOKBACK_SECS: u64 = 31 * 24 * 3600;
+
+/// Follows every Codex session file, reading only what was added since last time (see `tail.rs`).
+#[derive(Debug, Default)]
+pub struct CodexReader {
+    files: HashMap<PathBuf, FileState>,
+}
+
+#[derive(Debug, Default)]
+struct FileState {
+    tail: Tail,
+    parser: SessionParser,
+    /// The newest turn we've handed out from this file, so a file that's rewritten doesn't count twice.
+    last_ts: i64,
+}
+
+impl CodexReader {
+    /// The turns written since the last call. The first call reads every session from the last month.
+    pub fn poll(&mut self, dir: &Path) -> Vec<UsageEvent> {
+        let Ok(files) = find_session_files(dir) else {
+            return Vec::new();
+        };
+        let mut events = Vec::new();
+        for path in files {
+            if !self.files.contains_key(&path) && !modified_within(&path, LOOKBACK_SECS) {
+                continue;
+            }
+            let state = self.files.entry(path.clone()).or_default();
+            let Ok(new) = state.tail.read(&path) else {
+                continue; // deleted or unreadable: try again next time
+            };
+            if new.restarted {
+                state.parser = SessionParser::default();
+            }
+            for line in &new.lines {
+                if let Some(event) = state.parser.feed(line)
+                    && event.ts > state.last_ts
+                {
+                    state.last_ts = event.ts;
+                    events.push(event);
+                }
+            }
+        }
+        events
+    }
+
+    /// The newest limit reading across every file.
+    pub fn latest_limit(&self) -> Option<LimitWindow> {
+        self.files
+            .values()
+            .filter_map(|state| state.parser.latest_limit())
+            .max_by_key(|limit| limit.observed_at)
+    }
+}
+
+fn modified_within(path: &Path, secs: u64) -> bool {
+    std::fs::metadata(path)
+        .and_then(|meta| meta.modified())
+        .ok()
+        .and_then(|modified| modified.elapsed().ok())
+        .is_none_or(|age| age.as_secs() <= secs)
 }
 
 #[cfg(test)]
@@ -388,6 +446,56 @@ mod tests {
     fn latest_limit_is_none_without_readings() {
         let contents = r#"{"timestamp":"2026-07-01T22:42:12.764Z","type":"session_meta","payload":{"id":"test-session"}}"#;
         assert!(latest_limit(contents).is_none());
+    }
+
+    #[test]
+    fn reader_hands_out_each_turn_once_as_the_file_grows() {
+        let root = std::env::temp_dir().join(format!(
+            "statuspal-test-codex-reader-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        let day = root.join("2026").join("10").join("23");
+        std::fs::create_dir_all(&day).unwrap();
+        let file = day.join("rollout-2026-10-23T09-00-00-abc.jsonl");
+        let turn = |ts: &str, input: u64| {
+            format!(
+                r#"{{"timestamp":"{ts}","type":"event_msg","payload":{{"type":"token_count","info":{{"total_token_usage":{{"input_tokens":{input},"cached_input_tokens":0,"output_tokens":10,"reasoning_output_tokens":0}}}},"rate_limits":{{"primary":{{"used_percent":7.0,"window_minutes":43200,"resets_at":1785537790}}}}}}}}"#
+            )
+        };
+        std::fs::write(
+            &file,
+            format!(
+                "{}\n{}",
+                turn("2026-10-23T09:01:00Z", 100),
+                &turn("2026-10-23T09:02:00Z", 300)[..40]
+            ),
+        )
+        .unwrap();
+
+        let mut reader = CodexReader::default();
+        let first = reader.poll(&root);
+        assert_eq!(first.len(), 1, "the half-written second turn waits");
+        assert_eq!(first[0].tokens.input, 100);
+        assert_eq!(reader.latest_limit().unwrap().used_pct, 7.0);
+        assert!(reader.poll(&root).is_empty(), "nothing new");
+
+        // Codex finishes the line, then writes another turn.
+        let rest = format!(
+            "{}\n{}\n",
+            &turn("2026-10-23T09:02:00Z", 300)[40..],
+            turn("2026-10-23T09:03:00Z", 700)
+        );
+        let mut handle = std::fs::OpenOptions::new()
+            .append(true)
+            .open(&file)
+            .unwrap();
+        std::io::Write::write_all(&mut handle, rest.as_bytes()).unwrap();
+        let second = reader.poll(&root);
+        assert_eq!(
+            second.iter().map(|e| e.tokens.input).collect::<Vec<_>>(),
+            [200, 400]
+        );
     }
 
     #[test]

@@ -6,7 +6,8 @@ pub mod detect;
 pub mod model;
 pub mod placement;
 pub mod settings;
-pub mod snapshot;
+pub mod tail;
+pub mod tracker;
 pub mod watch;
 
 use std::path::PathBuf;

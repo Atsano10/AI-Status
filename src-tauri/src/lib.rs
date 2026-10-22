@@ -1,5 +1,3 @@
-use tauri::{Emitter, Manager};
-
 mod active;
 #[cfg(target_os = "macos")]
 mod bar;
@@ -11,16 +9,12 @@ mod settings;
 mod settings_window;
 #[cfg(target_os = "macos")]
 mod tray;
+mod usage;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
-#[tauri::command]
-fn get_limits() -> Vec<statuspal_core::model::UsageSnapshot> {
-    statuspal_core::snapshot::current_snapshots()
 }
 
 /// The ☰ menu's "Quit StatusPal".
@@ -48,6 +42,8 @@ pub fn run() {
         .setup(|app| {
             // First: the tray and the detector read the settings as soon as they start.
             settings::setup(app.handle());
+            // Before the bar, which asks for the numbers as soon as it loads.
+            usage::setup(app.handle());
 
             #[cfg(target_os = "macos")]
             {
@@ -60,28 +56,11 @@ pub fn run() {
 
             active::setup(app.handle());
 
-            // Send fresh numbers to the bar whenever Claude or Codex writes new usage data.
-            let handle = app.handle().clone();
-            match statuspal_core::watch::spawn(move || {
-                let _ = handle.emit(
-                    "limits-updated",
-                    statuspal_core::snapshot::current_snapshots(),
-                );
-            }) {
-                // Tauri keeps managed values alive until the app quits. Without this, `watcher` would be
-                // dropped at the end of `setup` and watching would stop right away.
-                Ok(watcher) => {
-                    app.manage(watcher);
-                }
-                Err(e) => {
-                    eprintln!("can't watch usage files, the bar only updates when shown: {e}")
-                }
-            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             greet,
-            get_limits,
+            usage::get_limits,
             quit,
             active::get_active_agent,
             settings::get_settings,
