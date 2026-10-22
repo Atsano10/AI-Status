@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::activity::{Activity, Pace};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 pub enum AgentId {
@@ -80,10 +82,15 @@ impl LimitWindow {
 /// `Serialize` lets Tauri send it to the bar as JSON.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[cfg_attr(test, derive(ts_rs::TS), ts(export))]
+#[serde(rename_all = "camelCase")]
 pub struct UsageSnapshot {
     pub agent: AgentId,
     /// 0, 1 or 2 limit bars.
     pub windows: Vec<LimitWindow>,
+    /// How hard this agent is working right now (the critter's gait).
+    pub activity: Activity,
+    /// How fast each window is filling, for the windows we have enough readings for.
+    pub pace: Vec<Pace>,
 }
 
 #[cfg(test)]

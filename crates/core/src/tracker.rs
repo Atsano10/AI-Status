@@ -4,10 +4,11 @@
 
 use std::collections::HashMap;
 
+use crate::activity::{self, GaitThresholds, PACE_SPAN_SECS, Reading};
 use crate::adapters::claude::statusline;
 use crate::adapters::claude::transcripts::{self, ClaudeReader};
 use crate::adapters::codex::{self, CodexReader};
-use crate::model::{AgentId, UsageEvent, UsageSnapshot};
+use crate::model::{AgentId, LimitWindow, UsageEvent, UsageSnapshot};
 
 /// Replies older than this are dropped. The critter looks at the last 10 minutes and tips at the last few
 /// hours, so a day is plenty.
@@ -21,6 +22,10 @@ pub struct Tracker {
     by_id: HashMap<(AgentId, String), UsageEvent>,
     /// The same events, oldest first.
     events: Vec<UsageEvent>,
+    /// The latest limit windows for each agent that has any.
+    limits: Vec<(AgentId, Vec<LimitWindow>)>,
+    /// Past limit % readings for each agent's window (by its length in minutes), oldest first, for the pace.
+    readings: HashMap<(AgentId, u32), Vec<Reading>>,
 }
 
 impl Tracker {
@@ -38,6 +43,41 @@ impl Tracker {
             new.extend(self.claude.poll(&dir));
         }
         self.add(new, now);
+
+        self.limits.clear();
+        // Claude's statusLine file is one small JSON, so it's simply read again each time.
+        if let Some(path) = statusline::statusline_file()
+            && let Ok(windows) = statusline::read(&path)
+            && !windows.is_empty()
+        {
+            self.limits.push((AgentId::Claude, windows));
+        }
+        if let Some(limit) = self.codex.latest_limit() {
+            self.limits.push((AgentId::Codex, vec![limit]));
+        }
+        self.remember_readings(now);
+    }
+
+    /// Adds the current limit readings to their history (a reading we already have is skipped), and forgets
+    /// the ones too old to matter for the pace.
+    fn remember_readings(&mut self, now: i64) {
+        for (agent, windows) in &self.limits {
+            for window in windows {
+                let history = self
+                    .readings
+                    .entry((*agent, window.window_minutes))
+                    .or_default();
+                if history
+                    .last()
+                    .is_none_or(|(at, _)| window.observed_at > *at)
+                {
+                    history.push((window.observed_at, window.used_pct));
+                }
+            }
+        }
+        for history in self.readings.values_mut() {
+            history.retain(|(at, _)| *at >= now - PACE_SPAN_SECS);
+        }
     }
 
     /// Adds events, merging ones about the same reply, and drops the ones older than `KEEP_SECS`.
@@ -62,28 +102,36 @@ impl Tracker {
         &self.events
     }
 
-    /// What the bar shows: one snapshot per agent that has a limit reading. An agent whose files are
-    /// missing or unreadable is left out rather than failing the whole thing.
-    pub fn snapshots(&self) -> Vec<UsageSnapshot> {
-        let mut snapshots = Vec::new();
-
-        // Claude's statusLine file is one small JSON, so it's simply read again each time.
-        if let Some(path) = statusline::statusline_file()
-            && let Ok(windows) = statusline::read(&path)
-        {
-            snapshots.push(UsageSnapshot {
-                agent: AgentId::Claude,
-                windows,
-            });
-        }
-
-        if let Some(limit) = self.codex.latest_limit() {
-            snapshots.push(UsageSnapshot {
-                agent: AgentId::Codex,
-                windows: vec![limit],
-            });
-        }
-        snapshots
+    /// What the bar shows: one snapshot per agent that has limit readings or replies from the last day.
+    pub fn snapshots(&self, now: i64, thresholds: GaitThresholds) -> Vec<UsageSnapshot> {
+        [AgentId::Claude, AgentId::Codex]
+            .into_iter()
+            .filter_map(|agent| {
+                let windows = self
+                    .limits
+                    .iter()
+                    .find(|(a, _)| *a == agent)
+                    .map(|(_, windows)| windows.clone())
+                    .unwrap_or_default();
+                let events = self.events.iter().filter(|e| e.agent == agent);
+                if windows.is_empty() && events.clone().next().is_none() {
+                    return None;
+                }
+                let pace = windows
+                    .iter()
+                    .filter_map(|window| {
+                        let history = self.readings.get(&(agent, window.window_minutes))?;
+                        activity::pace(history, window, now)
+                    })
+                    .collect();
+                Some(UsageSnapshot {
+                    agent,
+                    windows,
+                    activity: activity::activity(events, now, thresholds),
+                    pace,
+                })
+            })
+            .collect()
     }
 }
 
@@ -118,6 +166,36 @@ mod tests {
         assert_eq!(tracker.events().len(), 1);
         assert_eq!(tracker.events()[0].tokens.output, 228);
         assert_eq!(tracker.events()[0].ts, 100, "keeps when the reply started");
+    }
+
+    /// One real, busy hour of Claude Code (made with scripts/sanitize-claude-log.mjs: only ids, models and
+    /// token counts, times moved to start at 2026-01-01 00:00 UTC). It has repeated lines for most replies,
+    /// your messages in between, and every gait. The expected numbers were worked out separately, in Python.
+    #[test]
+    fn a_real_busy_hour() {
+        const START: i64 = 1767225600; // 2026-01-01 00:00 UTC
+        let fixture = include_str!("../tests/fixtures/claude-busy-hour.jsonl");
+        let events: Vec<_> = fixture
+            .lines()
+            .filter_map(transcripts::parse_line)
+            .collect();
+        let mut tracker = Tracker::default();
+        tracker.add(events, START + 3600);
+        assert_eq!(tracker.events().len(), 137, "698 lines, 137 replies");
+
+        let at = |minutes: i64| {
+            activity::activity(
+                tracker.events(),
+                START + minutes * 60,
+                GaitThresholds::default(),
+            )
+        };
+        use crate::activity::Gait::*;
+        assert_eq!((at(5).gait, at(5).recent_tokens), (Walking, 123_257));
+        assert_eq!((at(10).gait, at(10).recent_tokens), (Jogging, 322_031));
+        assert_eq!((at(30).gait, at(30).recent_tokens), (Running, 532_440));
+        assert_eq!((at(59).gait, at(59).recent_tokens), (Running, 707_038));
+        assert_eq!(at(70).gait, Sleeping, "you stopped after the hour");
     }
 
     #[test]

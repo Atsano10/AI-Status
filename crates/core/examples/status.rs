@@ -4,9 +4,10 @@
 use std::error::Error;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use statuspal_core::activity::GaitThresholds;
 use statuspal_core::adapters::claude::statusline;
 use statuspal_core::adapters::codex;
-use statuspal_core::model::{AgentId, LimitWindow};
+use statuspal_core::model::LimitWindow;
 use statuspal_core::tracker::Tracker;
 
 // Returning a Result from main lets us use `?`: any error stops the program and gets printed.
@@ -51,17 +52,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     // The app's view: what the Tracker keeps (the last day), read with the same incremental reader the app uses.
     let mut tracker = Tracker::default();
     tracker.refresh(now);
-    for agent in [AgentId::Claude, AgentId::Codex] {
-        let recent: Vec<_> = tracker
-            .events()
-            .iter()
-            .filter(|e| e.agent == agent)
-            .collect();
+    for snapshot in tracker.snapshots(now, GaitThresholds::default()) {
+        let a = snapshot.activity;
         println!(
-            "Tracker · {agent:?} · last 24h · {} replies · {} effective tokens · {} output",
-            recent.len(),
-            short(recent.iter().map(|e| e.tokens.effective()).sum()),
-            short(recent.iter().map(|e| e.tokens.output).sum())
+            "Tracker · {:?} · right now {:?} ({} effective tokens in the last 10 min)",
+            snapshot.agent,
+            a.gait,
+            short(a.recent_tokens)
         );
     }
 

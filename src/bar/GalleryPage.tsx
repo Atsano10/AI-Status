@@ -31,6 +31,12 @@ function win(
     approximate,
   };
 }
+/** A walking critter that replied two minutes ago. The gait isn't drawn yet. */
+const walking: UsageSnapshot["activity"] = {
+  gait: "walking",
+  recentTokens: 80_000,
+  lastReplyAt: NOW - 120,
+};
 const claude = (
   fiveH: number,
   week = 41,
@@ -38,10 +44,14 @@ const claude = (
 ): UsageSnapshot => ({
   agent: "Claude",
   windows: [win(300, fiveH, resetsIn, true), win(10080, week, 2.6 * 24 * H)],
+  activity: walking,
+  pace: [],
 });
 const codex: UsageSnapshot = {
   agent: "Codex",
   windows: [win(43200, 6, 22 * 24 * H)],
+  activity: walking,
+  pace: [],
 };
 const base: Prefs = {
   orientation: "horizontal",

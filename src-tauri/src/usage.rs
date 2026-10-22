@@ -8,6 +8,8 @@ use statuspal_core::model::UsageSnapshot;
 use statuspal_core::tracker::Tracker;
 use tauri::{AppHandle, Emitter, Manager};
 
+use crate::settings;
+
 pub struct UsageState(Mutex<Tracker>);
 
 pub fn setup(app: &AppHandle) {
@@ -33,8 +35,9 @@ pub fn setup(app: &AppHandle) {
 fn refresh(app: &AppHandle) -> Vec<UsageSnapshot> {
     let state = app.state::<UsageState>();
     let mut tracker = state.0.lock().unwrap();
-    tracker.refresh(now_secs());
-    tracker.snapshots()
+    let now = now_secs();
+    tracker.refresh(now);
+    tracker.snapshots(now, settings::get(app).gait_thresholds)
 }
 
 /// The bar asks for this when it loads and every time it's shown.

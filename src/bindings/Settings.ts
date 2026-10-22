@@ -3,6 +3,7 @@ import type { AgentId } from "./AgentId";
 import type { BarPosition } from "./BarPosition";
 import type { BarShows } from "./BarShows";
 import type { Behaviour } from "./Behaviour";
+import type { GaitThresholds } from "./GaitThresholds";
 import type { Orientation } from "./Orientation";
 
 export type Settings = { 
@@ -26,4 +27,8 @@ barPositions: { [key in string]: BarPosition },
 /**
  * The display the bar was on last, so it comes back there if that display is still connected.
  */
-barDisplay: string | null, };
+barDisplay: string | null, 
+/**
+ * Where the critter starts jogging and running (effective tokens per 10 minutes).
+ */
+gaitThresholds: GaitThresholds, };

@@ -15,6 +15,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::activity::GaitThresholds;
 use crate::model::AgentId;
 
 /// The name of the settings file.
@@ -80,6 +81,8 @@ pub struct Settings {
     pub bar_positions: BTreeMap<String, BarPosition>,
     /// The display the bar was on last, so it comes back there if that display is still connected.
     pub bar_display: Option<String>,
+    /// Where the critter starts jogging and running (effective tokens per 10 minutes).
+    pub gait_thresholds: GaitThresholds,
 }
 
 impl Default for Settings {
@@ -93,6 +96,7 @@ impl Default for Settings {
             pinned: None,
             bar_positions: BTreeMap::new(),
             bar_display: None,
+            gait_thresholds: GaitThresholds::default(),
         }
     }
 }
@@ -185,6 +189,10 @@ mod tests {
                 BarPosition { x: 12.0, y: 6.0 },
             )]),
             bar_display: Some("Studio Display".into()),
+            gait_thresholds: GaitThresholds {
+                jog_at: 50_000,
+                run_at: 200_000,
+            },
         };
         save(&path, &settings).unwrap();
         assert_eq!(load(&path), settings);
