@@ -234,18 +234,21 @@ impl Adapter for GeminiAdapter {
         let plan = settings::settings_file()
             .map(|path| settings::load(&path).gemini_plan)
             .unwrap_or(GeminiPlan::Auto);
-        self.limit = daily_requests(plan, Some(&dir)).map(|allowed| {
-            let today = pacific_day_start(now);
-            let used = self.requests.values().filter(|ts| **ts >= today).count();
-            LimitWindow {
-                used_pct: used as f64 / allowed as f64 * 100.0,
-                window_minutes: 24 * 60,
-                resets_at: Some(next_pacific_midnight(now)),
-                observed_at: self.requests.values().copied().max().unwrap_or(now),
-                // Counted from the logs, not reported by Google.
-                approximate: true,
-            }
-        });
+        // Nothing to show until you've used Gemini CLI lately (it may not even be installed).
+        self.limit = daily_requests(plan, Some(&dir))
+            .filter(|_| !self.requests.is_empty())
+            .map(|allowed| {
+                let today = pacific_day_start(now);
+                let used = self.requests.values().filter(|ts| **ts >= today).count();
+                LimitWindow {
+                    used_pct: used as f64 / allowed as f64 * 100.0,
+                    window_minutes: 24 * 60,
+                    resets_at: Some(next_pacific_midnight(now)),
+                    observed_at: self.requests.values().copied().max().unwrap_or(now),
+                    // Counted from the logs, not reported by Google.
+                    approximate: true,
+                }
+            });
         events
     }
 

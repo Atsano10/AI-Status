@@ -84,6 +84,7 @@ pub fn spawn(on_change: impl Fn() + Send + 'static) -> notify::Result<Recommende
 /// Everything else in those folders (the `.json.tmp` file, folders, other files) is ignored.
 fn is_relevant(path: &Path) -> bool {
     path.file_name() == Some(std::ffi::OsStr::new(statusline::FILE_NAME))
+        || path.file_name() == Some(std::ffi::OsStr::new(crate::classify::GUESS_FILE))
         || codex::is_rollout_file(path)
         || transcripts::is_transcript(path)
         || gemini::is_chat(path)

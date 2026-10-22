@@ -54,6 +54,7 @@ const claude = (
   activity: walking,
   pace: [],
   tip: null,
+  promptGuess: null,
 });
 const codex: UsageSnapshot = {
   agent: "Codex",
@@ -61,6 +62,7 @@ const codex: UsageSnapshot = {
   activity: walking,
   pace: [],
   tip: null,
+  promptGuess: null,
 };
 /** Gemini: 340 of 1,000 requests today, resetting at midnight Pacific. */
 const gemini: UsageSnapshot = {
@@ -69,6 +71,7 @@ const gemini: UsageSnapshot = {
   activity: walking,
   pace: [],
   tip: null,
+  promptGuess: null,
 };
 const base: Prefs = {
   orientation: "horizontal",

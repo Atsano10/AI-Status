@@ -75,6 +75,8 @@ pub fn run() {
             login::set_launch_at_login,
             bridge::get_bridge_status,
             bridge::set_bridge_connected,
+            bridge::get_prompt_hook_status,
+            bridge::set_prompt_hook,
             helpers::get_helpers,
             helpers::set_helper,
             codex::get_codex_setup,

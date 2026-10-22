@@ -9,6 +9,7 @@ import {
   longLabel,
   resetText,
   shortLabel,
+  until,
   updatedText,
   type Orientation,
   type PreferredWindow,
@@ -65,6 +66,7 @@ export default function Panel(props: PanelProps) {
           {agent && (!active || active.windows.length === 0) && (
             <NoData agent={agent} onSettings={props.onSettings} />
           )}
+          {agent && active && <Stale snapshot={active} now={now} />}
           {!agent && (
             <p className="panel-note">
               Switch to Claude, Codex, or a terminal running one of them or
@@ -246,6 +248,26 @@ function OtherAgent({
         })}
       </span>
     </div>
+  );
+}
+
+/** A reading this old (seconds) may be behind: other people or devices may have used the account since. */
+const STALE_AFTER = 15 * 60;
+
+/**
+ * Says when the numbers may be behind. StatusPal only gets a new % when this Mac's Claude Code (or Claude
+ * Desktop, or Codex) hears from the servers, so use on a shared account or another device shows up later.
+ */
+function Stale({ snapshot, now }: { snapshot: UsageSnapshot; now: number }) {
+  if (snapshot.agent === "Gemini" || snapshot.windows.length === 0) return null;
+  const newest = Math.max(...snapshot.windows.map((w) => w.observed_at));
+  if (now - newest < STALE_AFTER) return null;
+  const next = snapshot.agent === "Claude" ? "Claude Code reply" : "Codex turn";
+  return (
+    <p className="panel-stale">
+      Last reading {until(now - newest)} ago. Use from other devices or people
+      on your account shows up after your next {next}.
+    </p>
   );
 }
 

@@ -3,6 +3,7 @@ import type { Activity } from "./Activity";
 import type { AgentId } from "./AgentId";
 import type { LimitWindow } from "./LimitWindow";
 import type { Pace } from "./Pace";
+import type { PromptGuess } from "./PromptGuess";
 import type { Tip } from "./Tip";
 
 /**
@@ -25,4 +26,8 @@ pace: Array<Pace>,
 /**
  * The best tip for this agent right now that you haven't hidden (see `tips.rs`).
  */
-tip: Tip | null, };
+tip: Tip | null, 
+/**
+ * What the prompt classifier made of your latest prompt, if it's from the last few minutes.
+ */
+promptGuess: PromptGuess | null, };

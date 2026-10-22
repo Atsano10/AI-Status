@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::activity::{Activity, Pace};
+use crate::classify::PromptGuess;
 use crate::tips::Tip;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -97,6 +98,8 @@ pub struct UsageSnapshot {
     pub pace: Vec<Pace>,
     /// The best tip for this agent right now that you haven't hidden (see `tips.rs`).
     pub tip: Option<Tip>,
+    /// What the prompt classifier made of your latest prompt, if it's from the last few minutes.
+    pub prompt_guess: Option<PromptGuess>,
 }
 
 #[cfg(test)]

@@ -2,13 +2,14 @@
 //! backup, keeping a status line you already had) lives in `crates/core/src/adapters/claude/bridge.rs`.
 
 use statuspal_core::adapters::claude::bridge::{self, BridgeStatus};
+use statuspal_core::adapters::claude::hook::{self, HookStatus};
 
 /// What Claude Code should run: this very program with `--statusline` (see main.rs). Quoted for the shell,
 /// since the path can have spaces in it.
-fn our_command() -> Result<String, String> {
+fn our_command(flag: &str) -> Result<String, String> {
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
     let path = exe.to_string_lossy().replace('\'', r"'\''");
-    Ok(format!("'{path}' --statusline"))
+    Ok(format!("'{path}' {flag}"))
 }
 
 #[tauri::command]
@@ -26,5 +27,22 @@ pub fn set_bridge_connected(connected: bool) -> Result<BridgeStatus, String> {
     else {
         return Err("can't find your home folder".into());
     };
-    bridge::set_connected(&settings, &chain, &our_command()?, connected).map_err(|e| e.to_string())
+    bridge::set_connected(&settings, &chain, &our_command("--statusline")?, connected)
+        .map_err(|e| e.to_string())
+}
+
+/// Settings ▸ Claude Code ▸ Prompt hints: the classifier's hook (crates/core/src/adapters/claude/hook.rs).
+#[tauri::command]
+pub fn get_prompt_hook_status() -> HookStatus {
+    bridge::claude_settings_file()
+        .and_then(|path| bridge::read_settings(&path).ok())
+        .map(|settings| hook::status(&settings))
+        .unwrap_or(HookStatus::Off)
+}
+
+/// Only called after you confirm in the settings window.
+#[tauri::command]
+pub fn set_prompt_hook(on: bool) -> Result<HookStatus, String> {
+    let settings = bridge::claude_settings_file().ok_or("can't find your home folder")?;
+    hook::set_connected(&settings, &our_command("--prompt-hook")?, on).map_err(|e| e.to_string())
 }

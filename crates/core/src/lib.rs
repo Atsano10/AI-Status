@@ -3,6 +3,7 @@
 
 pub mod activity;
 pub mod adapters;
+pub mod classify;
 pub mod detect;
 pub mod model;
 pub mod placement;

@@ -61,7 +61,7 @@ pub fn status(settings: &Value) -> BridgeStatus {
 }
 
 /// The program a shell command runs: `'/path/with spaces/x' --flag` → `/path/with spaces/x`.
-fn program(command: &str) -> Option<String> {
+pub(crate) fn program(command: &str) -> Option<String> {
     let command = command.trim();
     let path = match command.strip_prefix('\'') {
         Some(rest) => rest.split('\'').next()?,
@@ -177,7 +177,7 @@ fn remove_if_there(path: &Path) -> io::Result<()> {
 
 /// Pretty JSON (2 spaces, like Claude Code writes it, keys in their original order), written via a temporary
 /// file so a crash can't leave half a file.
-fn write_json(path: &Path, value: &Value) -> io::Result<()> {
+pub(crate) fn write_json(path: &Path, value: &Value) -> io::Result<()> {
     if let Some(dir) = path.parent() {
         fs::create_dir_all(dir)?;
     }

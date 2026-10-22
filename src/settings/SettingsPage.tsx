@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import type { BridgeStatus } from "../bindings/BridgeStatus";
 import type { Corners } from "../bindings/Corners";
 import type { GeminiPlan } from "../bindings/GeminiPlan";
+import type { HookStatus } from "../bindings/HookStatus";
 import type { Palette } from "../bindings/Palette";
 import type { Surface } from "../bindings/Surface";
 import type { Theme } from "../bindings/Theme";
@@ -213,6 +214,7 @@ export default function SettingsPage() {
 
       <Section title="Claude Code">
         <ClaudeBridge />
+        <PromptHints />
       </Section>
 
       <Section title="Claude Code helpers">
@@ -360,6 +362,82 @@ function ClaudeBridge() {
           onClick={() => setConfirming(true)}
         >
           {status === "broken" ? "Reconnect" : "Connect"}
+        </button>
+      )}
+    </Row>
+  );
+}
+
+/**
+ * The prompt classifier's hook (crates/core/src/adapters/claude/hook.rs, classify.rs). It edits
+ * ~/.claude/settings.json, so Connect asks first, like the bridge.
+ */
+function PromptHints() {
+  const [status, setStatus] = useState<HookStatus | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    const check = () =>
+      invoke<HookStatus>("get_prompt_hook_status").then(setStatus);
+    check();
+    window.addEventListener("focus", check);
+    return () => window.removeEventListener("focus", check);
+  }, []);
+  const set = (on: boolean) =>
+    invoke<HookStatus>("set_prompt_hook", { on })
+      .then((s) => {
+        setStatus(s);
+        setError(null);
+      })
+      .catch((e) => setError(String(e)))
+      .finally(() => setConfirming(false));
+  if (status === null) return null;
+
+  if (confirming)
+    return (
+      <Row
+        label="Turn on prompt hints?"
+        hint="This adds a hook to ~/.claude/settings.json (a backup is saved next to it, and your own hooks stay). It looks at each prompt on your Mac and saves only its guess, never the text. Claude sees nothing from it."
+      >
+        <div className="settings-buttons">
+          <button
+            className="settings-button"
+            onClick={() => setConfirming(false)}
+          >
+            Cancel
+          </button>
+          <button
+            className="settings-button settings-button--primary"
+            onClick={() => set(true)}
+          >
+            Turn on
+          </button>
+        </div>
+      </Row>
+    );
+
+  return (
+    <Row
+      label="Prompt hints"
+      hint={
+        error ??
+        (status === "on"
+          ? "On. When a prompt looks quick and you're on Opus in a small chat, the panel suggests Sonnet."
+          : status === "broken"
+            ? "StatusPal moved since this was turned on. Turn it on again to fix it."
+            : "Guesses if a prompt is quick or big, on your Mac, and suggests a cheaper model when it'd do. Costs no tokens.")
+      }
+    >
+      {status === "on" ? (
+        <button className="settings-button" onClick={() => set(false)}>
+          Turn off
+        </button>
+      ) : (
+        <button
+          className="settings-button settings-button--primary"
+          onClick={() => setConfirming(true)}
+        >
+          {status === "broken" ? "Fix" : "Turn on"}
         </button>
       )}
     </Row>

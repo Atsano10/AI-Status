@@ -7,6 +7,7 @@
 
 use serde::Serialize;
 
+use crate::classify::PromptClass;
 use crate::model::{AgentId, LimitWindow, UsageEvent, UsageSnapshot};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
@@ -71,6 +72,7 @@ pub fn tips(snapshots: &[UsageSnapshot], events: &[UsageEvent], now: i64) -> Vec
         found.extend(short_replies_on_top_model(agent, &session));
         found.extend(quick_turns_on_high_effort(agent, &session));
         found.extend(fast_mode(agent, &session, now));
+        found.extend(prompt_size(snapshot, &session));
     }
     found.sort_by(|a, b| {
         b.severity
@@ -340,6 +342,47 @@ fn fast_mode(agent: AgentId, session: &[&UsageEvent], now: i64) -> Option<Tip> {
     ))
 }
 
+/// The classifier (`classify.rs`) is sure your latest prompt is a quick one, you're on the top model, and the
+/// chat is still small, so switching costs little (a switch re-sends the whole chat once). Or it's a big job
+/// on Haiku. Suggestions only: a hook can't switch the model, and a quick-looking prompt can still be hard.
+fn prompt_size(snapshot: &UsageSnapshot, session: &[&UsageEvent]) -> Option<Tip> {
+    let guess = snapshot
+        .prompt_guess
+        .as_ref()
+        .filter(|g| g.confidence >= 0.7)?;
+    let latest = session.last();
+    let model = latest.and_then(|e| e.model.as_deref()).unwrap_or("");
+    let small_chat = latest.is_none_or(|e| context(e) < 60_000);
+    let why = format!("The prompt hint: {}", guess.reasons.join(", "));
+    match guess.class {
+        PromptClass::Quick if (model.contains("opus") || model.contains("fable")) && small_chat => {
+            Some(copy(
+                tip(
+                    "prompt-looks-quick",
+                    snapshot.agent,
+                    Severity::Nudge,
+                    0.6,
+                    "That one looks quick. Sonnet would do it for less of your limit, and this chat is still small enough to switch cheaply.".into(),
+                    why,
+                ),
+                "/model sonnet",
+            ))
+        }
+        PromptClass::Deep if model.contains("haiku") => Some(copy(
+            tip(
+                "prompt-looks-deep",
+                snapshot.agent,
+                Severity::Info,
+                0.4,
+                "That one looks like a big job for Haiku. A bigger model may get it right first time.".into(),
+                why,
+            ),
+            "/model sonnet",
+        )),
+        _ => None,
+    }
+}
+
 /// The last `QUICK_STREAK` replies, if they were all quick.
 fn quick_streak<'a>(session: &[&'a UsageEvent]) -> Option<Vec<&'a UsageEvent>> {
     let streak = session.get(session.len().checked_sub(QUICK_STREAK)?..)?;
@@ -420,6 +463,7 @@ mod tests {
             },
             pace,
             tip: None,
+            prompt_guess: None,
         }
     }
 
@@ -549,6 +593,25 @@ mod tests {
         let mut latest = reply(60, 2000, 50_000);
         latest.fast = true;
         assert_eq!(rules(&[snapshot(vec![], vec![])], &[latest]), ["fast-mode"]);
+    }
+
+    #[test]
+    fn a_quick_prompt_on_opus_in_a_small_chat() {
+        let mut s = snapshot(vec![], vec![]);
+        s.prompt_guess = Some(crate::classify::PromptGuess {
+            at: NOW - 5,
+            session_id: "s".into(),
+            class: PromptClass::Quick,
+            confidence: 0.8,
+            reasons: vec!["very short".into(), "says \"typo\"".into()],
+        });
+        let small = vec![reply(60, 2000, 30_000)];
+        let found = tips(std::slice::from_ref(&s), &small, NOW);
+        assert_eq!(found[0].rule, "prompt-looks-quick");
+        assert_eq!(found[0].why, "The prompt hint: very short, says \"typo\"");
+        // A big chat: switching would re-send all of it, so no tip.
+        let big = vec![reply(60, 2000, 300_000)];
+        assert!(!rules(&[s], &big).contains(&"prompt-looks-quick".to_string()));
     }
 
     #[test]

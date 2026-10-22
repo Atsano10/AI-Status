@@ -138,8 +138,14 @@ impl Tracker {
     fn snapshots_without_tips(&self, now: i64, thresholds: GaitThresholds) -> Vec<UsageSnapshot> {
         self.adapters
             .iter()
-            .map(|adapter| (adapter.agent(), adapter.waiting_since()))
-            .filter_map(|(agent, waiting_since)| {
+            .map(|adapter| {
+                (
+                    adapter.agent(),
+                    adapter.waiting_since(),
+                    adapter.prompt_guess(),
+                )
+            })
+            .filter_map(|(agent, waiting_since, prompt_guess)| {
                 let windows = self
                     .limits
                     .iter()
@@ -166,6 +172,8 @@ impl Tracker {
                     activity,
                     pace,
                     tip: None,
+                    // Only a recent one: it's about the prompt you just sent.
+                    prompt_guess: prompt_guess.filter(|g| now - g.at < 10 * 60),
                 })
             })
             .collect()

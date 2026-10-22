@@ -5,6 +5,7 @@
 use std::fmt::Debug;
 
 use crate::activity::Reading;
+use crate::classify::PromptGuess;
 use crate::model::{AgentId, LimitWindow, UsageEvent};
 
 pub mod claude;
@@ -26,6 +27,11 @@ pub trait Adapter: Debug + Send {
     /// Since when (Unix seconds) the agent has been waiting for you: it finished and it's your turn. `None`
     /// while it's working, or if it can't tell.
     fn waiting_since(&self) -> Option<i64> {
+        None
+    }
+
+    /// The classifier's guess for your latest prompt (`classify.rs`), if the agent has a prompt hook.
+    fn prompt_guess(&self) -> Option<PromptGuess> {
         None
     }
 

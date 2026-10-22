@@ -425,6 +425,12 @@ button {
   line-height: 1.4;
   color: var(--text-secondary);
 }
+.panel-stale {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  color: var(--text-tertiary);
+}
 div.panel-note {
   display: flex;
   flex-direction: column;

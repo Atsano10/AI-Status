@@ -4,9 +4,12 @@
 fn main() {
     // Claude Code runs us as its status line (`statuspal --statusline`, set up in Settings ▸ Claude Code):
     // save what it sends, print one line, and exit, without starting the app.
-    if std::env::args().nth(1).as_deref() == Some("--statusline") {
-        statuspal_core::adapters::claude::statusline::run_bridge();
-        return;
+    match std::env::args().nth(1).as_deref() {
+        Some("--statusline") => return statuspal_core::adapters::claude::statusline::run_bridge(),
+        // Claude Code runs us on every prompt (Settings ▸ Claude Code ▸ Prompt hints): guess its size,
+        // print nothing, exit.
+        Some("--prompt-hook") => return statuspal_core::classify::run_hook(),
+        _ => {}
     }
     statuspal_lib::run()
 }
