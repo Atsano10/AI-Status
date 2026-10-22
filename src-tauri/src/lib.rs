@@ -7,6 +7,8 @@ mod helpers;
 #[cfg(target_os = "macos")]
 mod hotkey;
 mod login;
+#[cfg(target_os = "macos")]
+mod macos_shortcuts;
 mod settings;
 mod settings_window;
 #[cfg(target_os = "macos")]
@@ -92,7 +94,9 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             hotkey::set_hotkey,
             #[cfg(target_os = "macos")]
-            hotkey::pause_hotkey
+            hotkey::pause_hotkey,
+            #[cfg(target_os = "macos")]
+            hotkey::get_hotkey_warning
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

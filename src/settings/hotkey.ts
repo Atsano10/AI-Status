@@ -98,5 +98,7 @@ export function hotkeyErrorText(error: HotkeyError): string {
       return "Another app already uses that one. Try another.";
     case "invalid":
       return "That key can't be a shortcut. Try another.";
+    case "usedByMacos":
+      return "macOS already uses that one (System Settings ▸ Keyboard ▸ Keyboard Shortcuts). Try another.";
   }
 }

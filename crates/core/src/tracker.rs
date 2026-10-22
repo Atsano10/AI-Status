@@ -5,9 +5,7 @@
 use std::collections::HashMap;
 
 use crate::activity::{self, GaitThresholds, PACE_SPAN_SECS, Reading};
-use crate::adapters::claude::statusline;
-use crate::adapters::claude::transcripts::{self, ClaudeReader};
-use crate::adapters::codex::{self, CodexReader};
+use crate::adapters::{self, Adapter};
 use crate::model::{AgentId, LimitWindow, UsageEvent, UsageSnapshot};
 use crate::tips;
 
@@ -15,10 +13,10 @@ use crate::tips;
 /// hours, so a day is plenty.
 pub const KEEP_SECS: i64 = 24 * 3600;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Tracker {
-    codex: CodexReader,
-    claude: ClaudeReader,
+    /// One per agent (`adapters::all`).
+    adapters: Vec<Box<dyn Adapter>>,
     /// One event per reply. Logs can mention the same reply more than once, so they're kept by id.
     by_id: HashMap<(AgentId, String), UsageEvent>,
     /// The same events, oldest first.
@@ -29,51 +27,66 @@ pub struct Tracker {
     readings: HashMap<(AgentId, u32), Vec<Reading>>,
 }
 
+impl Default for Tracker {
+    /// A Tracker for every agent StatusPal knows.
+    fn default() -> Self {
+        Tracker::with(adapters::all())
+    }
+}
+
 impl Tracker {
+    pub fn with(adapters: Vec<Box<dyn Adapter>>) -> Self {
+        Tracker {
+            adapters,
+            by_id: HashMap::new(),
+            events: Vec::new(),
+            limits: Vec::new(),
+            readings: HashMap::new(),
+        }
+    }
+
     /// Reads whatever the agents wrote since the last refresh. `now` is Unix seconds.
     pub fn refresh(&mut self, now: i64) {
         let mut new = Vec::new();
-        if let Some(dir) = codex::sessions_dir()
-            && dir.is_dir()
-        {
-            new.extend(self.codex.poll(&dir));
-        }
-        if let Some(dir) = transcripts::projects_dir()
-            && dir.is_dir()
-        {
-            new.extend(self.claude.poll(&dir));
+        let mut past = Vec::new();
+        self.limits.clear();
+        for adapter in &mut self.adapters {
+            new.extend(adapter.refresh());
+            let windows = adapter.limits();
+            if !windows.is_empty() {
+                self.limits.push((adapter.agent(), windows));
+            }
+            past.extend(
+                adapter
+                    .past_readings()
+                    .into_iter()
+                    .map(|(minutes, reading)| ((adapter.agent(), minutes), reading)),
+            );
         }
         self.add(new, now);
-
-        self.limits.clear();
-        // Claude's statusLine file is one small JSON, so it's simply read again each time.
-        if let Some(path) = statusline::statusline_file()
-            && let Ok(windows) = statusline::read(&path)
-            && !windows.is_empty()
-        {
-            self.limits.push((AgentId::Claude, windows));
-        }
-        if let Some(limit) = self.codex.latest_limit() {
-            self.limits.push((AgentId::Codex, vec![limit]));
-        }
-        self.remember_readings(now);
+        self.remember_readings(past, now);
     }
 
-    /// Adds the current limit readings to their history (a reading we already have is skipped), and forgets
-    /// the ones too old to matter for the pace.
-    fn remember_readings(&mut self, now: i64) {
-        for (agent, windows) in &self.limits {
-            for window in windows {
-                let history = self
-                    .readings
-                    .entry((*agent, window.window_minutes))
-                    .or_default();
-                if history
-                    .last()
-                    .is_none_or(|(at, _)| window.observed_at > *at)
-                {
-                    history.push((window.observed_at, window.used_pct));
-                }
+    /// Adds the current limit readings, and any older ones an agent kept itself (`past`), to their history,
+    /// and forgets the ones too old to matter for the pace.
+    fn remember_readings(&mut self, past: Vec<((AgentId, u32), Reading)>, now: i64) {
+        let current: Vec<_> = self
+            .limits
+            .iter()
+            .flat_map(|(agent, windows)| {
+                windows
+                    .iter()
+                    .map(|w| ((*agent, w.window_minutes), (w.observed_at, w.used_pct)))
+            })
+            .collect();
+        for (key, reading) in current.into_iter().chain(past) {
+            if reading.0 < now - PACE_SPAN_SECS {
+                continue;
+            }
+            let history = self.readings.entry(key).or_default();
+            if !history.iter().any(|(at, _)| *at == reading.0) {
+                history.push(reading);
+                history.sort_by_key(|(at, _)| *at);
             }
         }
         for history in self.readings.values_mut() {
@@ -123,8 +136,9 @@ impl Tracker {
     }
 
     fn snapshots_without_tips(&self, now: i64, thresholds: GaitThresholds) -> Vec<UsageSnapshot> {
-        [AgentId::Claude, AgentId::Codex]
-            .into_iter()
+        self.adapters
+            .iter()
+            .map(|adapter| adapter.agent())
             .filter_map(|agent| {
                 let windows = self
                     .limits
@@ -198,7 +212,7 @@ mod tests {
         let fixture = include_str!("../tests/fixtures/claude-busy-hour.jsonl");
         let events: Vec<_> = fixture
             .lines()
-            .filter_map(transcripts::parse_line)
+            .filter_map(crate::adapters::claude::transcripts::parse_line)
             .collect();
         let mut tracker = Tracker::default();
         tracker.add(events, START + 3600);

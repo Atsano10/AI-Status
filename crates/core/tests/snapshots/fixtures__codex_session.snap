@@ -1,0 +1,6 @@
+---
+source: crates/core/tests/fixtures.rs
+expression: out
+---
+ 0:02 fixture-session:17190 gpt-6-luna       xhigh  in  10246 out    32 cache read    6912 write      0 =  10969 effective
+limit: Some(LimitWindow { used_pct: 0.0, window_minutes: 43200, resets_at: Some(1769817600), observed_at: 1767225602, approximate: false })

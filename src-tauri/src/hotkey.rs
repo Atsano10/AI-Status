@@ -6,7 +6,7 @@ use statuspal_core::settings::Settings;
 use tauri::AppHandle;
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
-use crate::{bar, settings};
+use crate::{bar, macos_shortcuts, settings};
 
 /// Why a shortcut can't be the hotkey. The settings window shows a message for each.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -21,6 +21,8 @@ pub enum HotkeyError {
     Reserved,
     /// Another app registered it first.
     Taken,
+    /// One of macOS's own shortcuts that's switched on (System Settings ▸ Keyboard ▸ Keyboard Shortcuts).
+    UsedByMacos,
 }
 
 /// Shortcuts the Mac already uses everywhere. Registering one would either fail silently or break it.
@@ -64,6 +66,9 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
 
     // Report a problem instead of crashing: you can still open the bar from the menu bar and pick another.
     let hotkey = settings::get(app).hotkey;
+    if let Some(name) = macos_conflict(app) {
+        eprintln!("hotkey {hotkey} is also macOS's \"{name}\", pick another in Settings");
+    }
     match register_saved(app) {
         Ok(()) => println!("hotkey {hotkey} registered"),
         Err(e) => eprintln!("hotkey {hotkey} can't be used ({e:?}), pick another in Settings"),
@@ -126,6 +131,9 @@ fn register_saved(app: &AppHandle) -> Result<(), HotkeyError> {
 #[tauri::command]
 pub async fn set_hotkey(app: AppHandle, hotkey: String) -> Result<Settings, HotkeyError> {
     let shortcut = check(&hotkey)?;
+    if macos_shortcuts::used_by(&shortcut).is_some() {
+        return Err(HotkeyError::UsedByMacos);
+    }
     let shortcuts = app.global_shortcut();
     let _ = shortcuts.unregister_all();
     if shortcuts.register(shortcut).is_err() {
@@ -133,6 +141,18 @@ pub async fn set_hotkey(app: AppHandle, hotkey: String) -> Result<Settings, Hotk
         return Err(HotkeyError::Taken);
     }
     Ok(settings::set_hotkey(&app, hotkey))
+}
+
+/// If your hotkey is also one of macOS's own shortcuts, its name (e.g. "Select next source in Input menu"),
+/// for a warning under the recorder. You may have picked it before StatusPal checked, or changed macOS since.
+#[tauri::command]
+pub fn get_hotkey_warning(app: AppHandle) -> Option<String> {
+    macos_conflict(&app).map(String::from)
+}
+
+fn macos_conflict(app: &AppHandle) -> Option<&'static str> {
+    let shortcut = check(&settings::get(app).hotkey).ok()?;
+    macos_shortcuts::used_by(&shortcut)
 }
 
 /// While the recorder listens, the current hotkey is switched off. Otherwise pressing it would toggle the bar

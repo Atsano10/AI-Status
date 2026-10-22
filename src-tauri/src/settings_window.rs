@@ -20,6 +20,7 @@ pub fn open(app: &AppHandle) {
         .maximizable(false)
         .minimizable(false)
         .center()
+        // Dark until the page has loaded Settings ▸ Look, which then sets the title bar (appearance.ts).
         .theme(Some(Theme::Dark))
         .build();
     match built {

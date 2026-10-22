@@ -3,4 +3,4 @@
 /**
  * Why a shortcut can't be the hotkey. The settings window shows a message for each.
  */
-export type HotkeyError = "invalid" | "needsModifier" | "reserved" | "taken";
+export type HotkeyError = "invalid" | "needsModifier" | "reserved" | "taken" | "usedByMacos";

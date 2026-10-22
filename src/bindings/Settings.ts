@@ -3,8 +3,12 @@ import type { AgentId } from "./AgentId";
 import type { BarPosition } from "./BarPosition";
 import type { BarShows } from "./BarShows";
 import type { Behaviour } from "./Behaviour";
+import type { Corners } from "./Corners";
 import type { GaitThresholds } from "./GaitThresholds";
 import type { Orientation } from "./Orientation";
+import type { Palette } from "./Palette";
+import type { Surface } from "./Surface";
+import type { Theme } from "./Theme";
 
 export type Settings = { 
 /**
@@ -36,6 +40,18 @@ gaitThresholds: GaitThresholds,
  * Show tips in the panel (see `tips.rs`).
  */
 tips: boolean, 
+/**
+ * The look (Settings ▸ Look).
+ */
+palette: Palette, theme: Theme, surface: Surface, 
+/**
+ * The panel's buttons.
+ */
+buttons: Corners, 
+/**
+ * The settings window's cards.
+ */
+cards: Corners, 
 /**
  * Tips you hid, by rule id, until when (Unix seconds). "Never" is far in the future.
  */

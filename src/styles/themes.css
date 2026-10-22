@@ -1,0 +1,157 @@
+/*
+ * The looks you pick in Settings ▸ Look. Each choice is a data attribute on the page's root element, set by
+ * appearance.ts from the settings file: data-palette, data-theme (already resolved to dark or light),
+ * data-surface, data-buttons, data-cards. tokens.css holds the defaults (Classic, dark, solid, rounded).
+ */
+
+/* ---------- Colours ---------- */
+
+:root[data-palette="arcade"] {
+  --level-normal: #39ff88;
+  --level-close: #ffe600;
+  --level-out: #ff2bd6;
+  --level-reset: #00e5ff;
+  --claude-light: #ffa98a;
+  --claude-main: #ff7a59;
+  --claude-shade: #d9512f;
+  --codex-line: #2a1a80;
+  --codex-light: #a993ff;
+  --codex-main: #7b5cff;
+  --codex-shade: #5b3fe0;
+}
+:root[data-palette="sunset"] {
+  --level-normal: #ffc857;
+  --level-close: #ff8c42;
+  --level-out: #e63946;
+  --level-reset: #8ac926;
+  --claude-light: #f7c08a;
+  --claude-main: #f4a261;
+  --claude-shade: #d4823f;
+  --codex-line: #1d3557;
+  --codex-light: #6ea3c4;
+  --codex-main: #457b9d;
+  --codex-shade: #2f5d7c;
+}
+:root[data-palette="cool"] {
+  --level-normal: #7dd3fc;
+  --level-close: #fbbf24;
+  --level-out: #f43f5e;
+  --level-reset: #34d399;
+  --claude-light: #fdba74;
+  --claude-main: #fb923c;
+  --claude-shade: #ea7317;
+  --codex-line: #312e81;
+  --codex-light: #a5b4fc;
+  --codex-main: #818cf8;
+  --codex-shade: #6366f1;
+}
+:root[data-palette="pastel"] {
+  --level-normal: #fde68a;
+  --level-close: #fdba74;
+  --level-out: #fca5a5;
+  --level-reset: #86efac;
+  --claude-light: #fbcfe8;
+  --claude-main: #f9a8d4;
+  --claude-shade: #db7fb3;
+  --codex-line: #4338ca;
+  --codex-light: #c7d2fe;
+  --codex-main: #a5b4fc;
+  --codex-shade: #818cf8;
+}
+
+/* ---------- Light theme ---------- */
+
+:root[data-theme="light"] {
+  --surface-pill: #f7f6f3;
+  --surface-panel: #ffffff;
+  --surface-track: #e7e5e0;
+  --surface-hairline: #d6d3cc;
+  --surface-frame: #c9c5bc;
+  --surface-highlight: rgba(255, 255, 255, 0.7);
+  --surface-edge: rgba(24, 24, 27, 0.1);
+  --surface-hover: rgba(24, 24, 27, 0.06);
+  --surface-press: rgba(24, 24, 27, 0.12);
+  --text-primary: #1c1b1f;
+  --text-secondary: #55535c;
+  --text-tertiary: #94919b;
+}
+/* Classic's yellow is hard to read on white, so it gets a little darker. The other palettes keep theirs. */
+:root[data-theme="light"][data-palette="classic"] {
+  --level-normal: #e8a800;
+  --level-close: #e8740c;
+  --level-out: #e0313a;
+  --level-reset: #1f9d5c;
+}
+
+/* ---------- See-through surface ---------- */
+
+:root[data-surface="glass"] {
+  --surface-pill: rgba(10, 10, 12, 0.72);
+  --surface-panel: rgba(23, 23, 27, 0.8);
+  --surface-frame: rgba(255, 255, 255, 0.16);
+}
+:root[data-surface="glass"][data-theme="light"] {
+  --surface-pill: rgba(247, 246, 243, 0.78);
+  --surface-panel: rgba(255, 255, 255, 0.82);
+  --surface-frame: rgba(120, 116, 108, 0.35);
+}
+
+/* ---------- Pixel corners ---------- */
+
+:root {
+  /* Buttons' stepped corners: scripts/pixel-shape.mjs 8 4 */
+  --shape-button: polygon(
+    0 8px,
+    0 4px,
+    4px 4px,
+    4px 0,
+    calc(100% - 4px) 0,
+    calc(100% - 4px) 4px,
+    100% 4px,
+    100% 8px,
+    100% calc(100% - 8px),
+    100% calc(100% - 4px),
+    calc(100% - 4px) calc(100% - 4px),
+    calc(100% - 4px) 100%,
+    4px 100%,
+    4px calc(100% - 4px),
+    0 calc(100% - 4px),
+    0 calc(100% - 8px)
+  );
+}
+:root[data-buttons="pixel"] .btn,
+:root[data-buttons="pixel"] .segmented,
+:root[data-buttons="pixel"] .segmented button {
+  border-radius: 0;
+  clip-path: var(--shape-button);
+}
+
+/* The settings window's cards as pixel frames, like the bar (same trick: frame colour, then the surface
+   2px inside it). */
+:root[data-cards="pixel"] .settings-card {
+  position: relative;
+  isolation: isolate;
+  border: 0;
+  border-radius: 0;
+  background: var(--surface-frame);
+  clip-path: var(--shape-panel);
+}
+:root[data-cards="pixel"] .settings-card::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  z-index: -1;
+  background: var(--surface-pill);
+  clip-path: var(--shape-panel);
+}
+:root[data-cards="pixel"] .settings-button,
+:root[data-cards="pixel"] .recorder-key,
+:root[data-cards="pixel"] .settings-choice,
+:root[data-cards="pixel"] .settings-choice button,
+:root[data-cards="pixel"] .switch {
+  border-radius: 0;
+  clip-path: var(--shape-button);
+}
+:root[data-cards="pixel"] .switch-knob {
+  border-radius: 0;
+}

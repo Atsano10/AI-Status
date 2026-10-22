@@ -1,6 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useState, type ReactNode } from "react";
 import type { BridgeStatus } from "../bindings/BridgeStatus";
+import type { Corners } from "../bindings/Corners";
+import type { Palette } from "../bindings/Palette";
+import type { Surface } from "../bindings/Surface";
+import type { Theme } from "../bindings/Theme";
 import type { CodexSetup } from "../bindings/CodexSetup";
 import type { HelperInfo } from "../bindings/HelperInfo";
 import type { Orientation, PreferredWindow } from "../bar/state";
@@ -72,6 +76,73 @@ export default function SettingsPage() {
               ["week", "Week"],
             ]}
             onChange={(barShows) => updateSettings({ barShows })}
+          />
+        </Row>
+      </Section>
+
+      <Section title="Look">
+        <Row
+          label="Colours"
+          stacked
+          hint="The bar's colours and each critter's."
+        >
+          <Choice<Palette>
+            value={settings.palette}
+            options={[
+              ["classic", "Classic"],
+              ["arcade", "Arcade"],
+              ["sunset", "Sunset"],
+              ["cool", "Cool"],
+              ["pastel", "Pastel"],
+            ]}
+            onChange={(palette) => updateSettings({ palette })}
+          />
+        </Row>
+        <Row
+          label="Theme"
+          hint="System follows macOS: dark at night, light by day if you've set that."
+        >
+          <Choice<Theme>
+            value={settings.theme}
+            options={[
+              ["dark", "Dark"],
+              ["light", "Light"],
+              ["system", "System"],
+            ]}
+            onChange={(theme) => updateSettings({ theme })}
+          />
+        </Row>
+        <Row
+          label="Surface"
+          hint="Solid blends into the MacBook notch. See-through shows your wallpaper behind the bar."
+        >
+          <Choice<Surface>
+            value={settings.surface}
+            options={[
+              ["solid", "Solid"],
+              ["glass", "See-through"],
+            ]}
+            onChange={(surface) => updateSettings({ surface })}
+          />
+        </Row>
+        <Row label="Buttons" hint="In the bar's panel.">
+          <Choice<Corners>
+            value={settings.buttons}
+            options={[
+              ["rounded", "Rounded"],
+              ["pixel", "Pixel"],
+            ]}
+            onChange={(buttons) => updateSettings({ buttons })}
+          />
+        </Row>
+        <Row label="Settings cards" hint="These boxes, here.">
+          <Choice<Corners>
+            value={settings.cards}
+            options={[
+              ["rounded", "Rounded"],
+              ["pixel", "Pixel"],
+            ]}
+            onChange={(cards) => updateSettings({ cards })}
           />
         </Row>
       </Section>

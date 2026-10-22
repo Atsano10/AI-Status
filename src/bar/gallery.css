@@ -118,3 +118,11 @@ body {
   width: 96px;
   height: 80px;
 }
+
+/* The look switcher at the top. */
+.gallery-look {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+  font-size: 12px;
+}

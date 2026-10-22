@@ -1,5 +1,9 @@
 // Dev-only page that draws every bar state with sample data (entry: gallery-main.tsx).
 import { useEffect, useState } from "react";
+import type { Corners } from "../bindings/Corners";
+import type { Palette } from "../bindings/Palette";
+import type { Surface } from "../bindings/Surface";
+import { applyLook } from "../styles/appearance";
 import type { Gait } from "../bindings/Gait";
 import { BarView } from "./Bar";
 import Panel from "./Panel";
@@ -165,6 +169,53 @@ const MOODS: Mood[] = [
   "confused",
 ];
 
+/** The same choices as Settings ▸ Look, so every look can be checked here (appearance.ts, themes.css). */
+function LookSwitcher() {
+  const [look, setLook] = useState({
+    palette: "classic" as Palette,
+    surface: "solid" as Surface,
+    buttons: "rounded" as Corners,
+    cards: "rounded" as Corners,
+  });
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  useEffect(() => {
+    applyLook(document.documentElement, look, theme);
+  }, [look, theme]);
+
+  const pick = <T extends string>(
+    label: string,
+    value: T,
+    options: T[],
+    onChange: (v: T) => void,
+  ) => (
+    <label>
+      {label}{" "}
+      <select value={value} onChange={(e) => onChange(e.target.value as T)}>
+        {options.map((o) => (
+          <option key={o}>{o}</option>
+        ))}
+      </select>
+    </label>
+  );
+  return (
+    <div className="gallery-controls gallery-look">
+      {pick<Palette>(
+        "Colours",
+        look.palette,
+        ["classic", "arcade", "sunset", "cool", "pastel"],
+        (palette) => setLook({ ...look, palette }),
+      )}
+      {pick("Theme", theme, ["dark", "light"], setTheme)}
+      {pick<Surface>("Surface", look.surface, ["solid", "glass"], (surface) =>
+        setLook({ ...look, surface }),
+      )}
+      {pick<Corners>("Buttons", look.buttons, ["rounded", "pixel"], (buttons) =>
+        setLook({ ...look, buttons }),
+      )}
+    </div>
+  );
+}
+
 export default function GalleryPage() {
   const [orientation, setOrientation] = useState<Orientation>("horizontal");
   const [live, setLive] = useState(0);
@@ -176,6 +227,7 @@ export default function GalleryPage() {
         Every pill state, every critter mood, then the panel. The app uses these
         same components; this page just feeds them sample data.
       </p>
+      <LookSwitcher />
 
       <section>
         <h2>Pill states</h2>

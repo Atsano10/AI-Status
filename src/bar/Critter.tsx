@@ -34,10 +34,11 @@ const CLAUDE_GRID = [
   "..................",
   "..................",
 ];
-const CLAUDE_MAIN = "#d97757";
-const CLAUDE_SHADE = "#b25d40";
+// Colours are CSS variables (set in tokens.css), so a palette can recolour the critters.
+const CLAUDE_MAIN = "var(--claude-main)";
+const CLAUDE_SHADE = "var(--claude-shade)";
 const CLAUDE_INK: Record<string, Ink> = {
-  H: { color: "#e9946f", part: "body" },
+  H: { color: "var(--claude-light)", part: "body" },
   O: { color: CLAUDE_MAIN, part: "body" },
   D: { color: CLAUDE_SHADE, part: "body" },
   K: { color: "#1c1b1f", part: "eyes" },
@@ -72,15 +73,15 @@ const CODEX_GRID = [
   ".....OxxOOyyO.....",
   ".....XXXXYYYY.....",
 ];
-const CODEX_LINE = "#1f2a86";
-const CODEX_BLUE = "#4c66ee";
-const CODEX_GLOW = "#7ff3ee";
+const CODEX_LINE = "var(--codex-line)";
+const CODEX_BLUE = "var(--codex-main)";
+const CODEX_GLOW = "var(--codex-glow)";
 const CODEX_INK: Record<string, Ink> = {
   O: { color: CODEX_LINE, part: "body" },
-  L: { color: "#7d90f8", part: "body" },
+  L: { color: "var(--codex-light)", part: "body" },
   B: { color: CODEX_BLUE, part: "body" },
-  D: { color: "#3549c9", part: "body" },
-  S: { color: "#151a46", part: "body" },
+  D: { color: "var(--codex-shade)", part: "body" },
+  S: { color: "var(--codex-visor)", part: "body" },
   c: { color: CODEX_GLOW, part: "body" },
   E: { color: CODEX_GLOW, part: "eyes" },
   a: { color: CODEX_BLUE, part: "arm-l" },
@@ -121,7 +122,7 @@ function drawGrid(grid: string[], ink: Record<string, Ink>) {
               y={y}
               width={end - x}
               height={1}
-              fill={style.color}
+              style={{ fill: style.color }}
             />,
           );
       }
@@ -204,7 +205,7 @@ export default function Critter({
       <g className="c-sprite">
         {SPRITES[agent]}
         {agent === "Codex" && (
-          <g className="c-prompt" fill={CODEX_GLOW}>
+          <g className="c-prompt" style={{ fill: CODEX_GLOW }}>
             {CODEX_PROMPT.map(([x, y, w]) => (
               <rect key={`${x},${y}`} x={x} y={y} width={w} height={1} />
             ))}

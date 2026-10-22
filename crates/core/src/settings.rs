@@ -52,6 +52,49 @@ pub enum BarShows {
     Week,
 }
 
+/// The bar's colours: the usage levels and each critter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
+#[serde(rename_all = "lowercase")]
+pub enum Palette {
+    /// Yellow → orange → red, orange Claude, blue Codex.
+    Classic,
+    Arcade,
+    Sunset,
+    Cool,
+    Pastel,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
+#[serde(rename_all = "lowercase")]
+pub enum Theme {
+    Dark,
+    Light,
+    /// Dark or light, following macOS.
+    System,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
+#[serde(rename_all = "lowercase")]
+pub enum Surface {
+    /// Notch black (or white): blends into the MacBook notch.
+    Solid,
+    /// See-through, so your wallpaper shows behind it.
+    Glass,
+}
+
+/// The corners of buttons or cards.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
+#[serde(rename_all = "lowercase")]
+pub enum Corners {
+    Rounded,
+    /// Stepped, like the bar's pixel frame.
+    Pixel,
+}
+
 /// Where the bar sits on one display: its top-left corner, in points from the top-left of the display's
 /// usable area (below the menu bar).
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -85,6 +128,14 @@ pub struct Settings {
     pub gait_thresholds: GaitThresholds,
     /// Show tips in the panel (see `tips.rs`).
     pub tips: bool,
+    /// The look (Settings ▸ Look).
+    pub palette: Palette,
+    pub theme: Theme,
+    pub surface: Surface,
+    /// The panel's buttons.
+    pub buttons: Corners,
+    /// The settings window's cards.
+    pub cards: Corners,
     /// Tips you hid, by rule id, until when (Unix seconds). "Never" is far in the future.
     #[cfg_attr(test, ts(type = "{ [rule in string]?: number }"))]
     pub hidden_tips: BTreeMap<String, i64>,
@@ -110,6 +161,11 @@ impl Default for Settings {
             bar_display: None,
             gait_thresholds: GaitThresholds::default(),
             tips: true,
+            palette: Palette::Classic,
+            theme: Theme::Dark,
+            surface: Surface::Solid,
+            buttons: Corners::Rounded,
+            cards: Corners::Rounded,
             hidden_tips: BTreeMap::new(),
         }
     }
@@ -208,6 +264,11 @@ mod tests {
                 run_at: 200_000,
             },
             tips: false,
+            palette: Palette::Sunset,
+            theme: Theme::System,
+            surface: Surface::Glass,
+            buttons: Corners::Pixel,
+            cards: Corners::Pixel,
             hidden_tips: BTreeMap::from([("fast-mode".into(), i64::MAX)]),
         };
         save(&path, &settings).unwrap();

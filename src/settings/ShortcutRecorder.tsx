@@ -17,6 +17,11 @@ export default function ShortcutRecorder({ hotkey }: { hotkey: string }) {
   const [recording, setRecording] = useState(false);
   const [held, setHeld] = useState("");
   const [error, setError] = useState<HotkeyError | null>(null);
+  // Your hotkey might also be a macOS shortcut (picked before StatusPal checked, or macOS changed since).
+  const [clash, setClash] = useState<string | null>(null);
+  useEffect(() => {
+    invoke<string | null>("get_hotkey_warning").then(setClash);
+  }, [hotkey]);
 
   useEffect(() => {
     if (!recording) return;
@@ -90,6 +95,12 @@ export default function ShortcutRecorder({ hotkey }: { hotkey: string }) {
       </div>
       {error && (
         <span className="recorder-error">{hotkeyErrorText(error)}</span>
+      )}
+      {!error && clash && (
+        <span className="recorder-error">
+          macOS also uses this for “{clash}”. Pick another, or turn that off in
+          System Settings ▸ Keyboard ▸ Keyboard Shortcuts.
+        </span>
       )}
     </div>
   );

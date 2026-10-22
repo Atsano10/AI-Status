@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
+use crate::adapters::Adapter;
 use crate::model::{AgentId, LimitWindow, TokenUsage, UsageEvent};
 use crate::tail::Follower;
 
@@ -44,6 +45,8 @@ struct TokenInfo {
 struct RawUsage {
     input_tokens: u64,
     cached_input_tokens: u64,
+    /// Newer Codex versions log cache writes too; older ones leave it out (0).
+    cache_write_input_tokens: u64,
     output_tokens: u64,
     reasoning_output_tokens: u64,
 }
@@ -57,6 +60,9 @@ impl RawUsage {
             cached_input_tokens: self
                 .cached_input_tokens
                 .saturating_sub(prev.cached_input_tokens),
+            cache_write_input_tokens: self
+                .cache_write_input_tokens
+                .saturating_sub(prev.cache_write_input_tokens),
             output_tokens: self.output_tokens.saturating_sub(prev.output_tokens),
             reasoning_output_tokens: self
                 .reasoning_output_tokens
@@ -69,7 +75,7 @@ impl RawUsage {
             input: self.input_tokens.saturating_sub(self.cached_input_tokens),
             output: self.output_tokens,
             cache_read: self.cached_input_tokens,
-            cache_write: 0,
+            cache_write: self.cache_write_input_tokens,
             reasoning: self.reasoning_output_tokens,
         }
     }
@@ -278,6 +284,29 @@ impl CodexReader {
     }
 }
 
+/// Codex: turns and the limit, both from its session logs.
+#[derive(Debug, Default)]
+pub struct CodexAdapter {
+    reader: CodexReader,
+}
+
+impl Adapter for CodexAdapter {
+    fn agent(&self) -> AgentId {
+        AgentId::Codex
+    }
+
+    fn refresh(&mut self) -> Vec<UsageEvent> {
+        match sessions_dir() {
+            Some(dir) if dir.is_dir() => self.reader.poll(&dir),
+            _ => Vec::new(),
+        }
+    }
+
+    fn limits(&self) -> Vec<LimitWindow> {
+        self.reader.latest_limit().into_iter().collect()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -329,6 +358,7 @@ mod tests {
         let raw = RawUsage {
             input_tokens: 30594,
             cached_input_tokens: 24064,
+            cache_write_input_tokens: 0,
             output_tokens: 307,
             reasoning_output_tokens: 57,
         };
@@ -337,7 +367,7 @@ mod tests {
         assert_eq!(usage.cache_read, 24064);
         assert_eq!(usage.output, 307);
         assert_eq!(usage.reasoning, 57);
-        assert_eq!(usage.cache_write, 0); // Codex doesn't report cache writes
+        assert_eq!(usage.cache_write, 0); // not in this (older) line
     }
 
     #[test]
