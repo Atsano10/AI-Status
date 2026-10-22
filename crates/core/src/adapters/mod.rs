@@ -22,6 +22,12 @@ pub trait Adapter: Debug + Send {
     /// The latest limit windows (0, 1 or 2), as of the last `refresh`.
     fn limits(&self) -> Vec<LimitWindow>;
 
+    /// Since when (Unix seconds) the agent has been waiting for you: it finished and it's your turn. `None`
+    /// while it's working, or if it can't tell.
+    fn waiting_since(&self) -> Option<i64> {
+        None
+    }
+
     /// Older limit readings the agent kept itself, by window length in minutes, for the pace. Most agents
     /// have none; we collect our own as we go.
     fn past_readings(&self) -> Vec<(u32, Reading)> {

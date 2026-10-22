@@ -133,6 +133,7 @@ pub fn find_transcripts(dir: &Path) -> io::Result<Vec<PathBuf>> {
 #[derive(Debug, Default)]
 pub struct ClaudeReader {
     files: Follower<()>,
+    turn: Turn,
 }
 
 impl ClaudeReader {
@@ -142,10 +143,71 @@ impl ClaudeReader {
             return Vec::new();
         };
         let mut events = Vec::new();
+        let turn = &mut self.turn;
         self.files.poll(paths, LOOKBACK_SECS, |_, line| {
             events.extend(parse_line(line));
+            turn.feed(line);
         });
         events
+    }
+
+    /// Since when Claude has been waiting for you: it finished its reply and you haven't answered yet.
+    pub fn waiting_since(&self) -> Option<i64> {
+        self.turn.waiting_since
+    }
+}
+
+/// Whose turn it is, from the newest line in any chat. Claude ends a finished reply with
+/// `"stop_reason": "end_turn"` (`"tool_use"` while it's still working), and your answer is a `"user"` line.
+/// Helper agents' lines (`"isSidechain": true`) don't count: they're Claude talking to itself.
+#[derive(Debug, Default)]
+struct Turn {
+    newest: i64,
+    waiting_since: Option<i64>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TurnLine {
+    #[serde(rename = "type")]
+    kind: String,
+    timestamp: Option<String>,
+    #[serde(default)]
+    is_sidechain: bool,
+    message: Option<TurnMessage>,
+}
+
+#[derive(Debug, Deserialize)]
+struct TurnMessage {
+    stop_reason: Option<String>,
+}
+
+impl Turn {
+    fn feed(&mut self, line: &str) {
+        if !line.contains("\"assistant\"") && !line.contains("\"user\"") {
+            return;
+        }
+        let Ok(line) = serde_json::from_str::<TurnLine>(line) else {
+            return;
+        };
+        let Some(ts) = line
+            .timestamp
+            .as_deref()
+            .and_then(|t| chrono::DateTime::parse_from_rfc3339(t).ok())
+            .map(|t| t.timestamp())
+        else {
+            return;
+        };
+        if line.is_sidechain || ts < self.newest {
+            return;
+        }
+        let stop = line.message.and_then(|m| m.stop_reason);
+        match (line.kind.as_str(), stop.as_deref()) {
+            ("assistant", Some("end_turn")) => self.waiting_since = Some(ts),
+            ("assistant", Some(_)) | ("user", _) => self.waiting_since = None,
+            _ => return, // a line that doesn't say whose turn it is
+        }
+        self.newest = ts;
     }
 }
 
@@ -188,6 +250,28 @@ mod tests {
         assert_eq!(parse_line(synthetic), None);
         assert_eq!(parse_line(no_usage), None);
         assert_eq!(parse_line(r#"{"type":"assistant","timest"#), None);
+    }
+
+    #[test]
+    fn waiting_for_you_after_a_finished_reply() {
+        let line = |kind: &str, ts: &str, stop: &str| {
+            format!(
+                r#"{{"type":"{kind}","timestamp":"2026-10-22T07:{ts}Z","message":{{"stop_reason":{stop}}}}}"#
+            )
+        };
+        let mut turn = Turn::default();
+        turn.feed(&line("assistant", "00:00", r#""tool_use""#));
+        assert_eq!(turn.waiting_since, None, "still working");
+        turn.feed(&line("assistant", "01:00", r#""end_turn""#));
+        assert_eq!(turn.waiting_since, Some(1792652460));
+        // A helper agent finishing isn't Claude waiting for you.
+        turn.feed(r#"{"type":"assistant","timestamp":"2026-10-22T07:02:00Z","isSidechain":true,"message":{"stop_reason":"tool_use"}}"#);
+        assert_eq!(turn.waiting_since, Some(1792652460));
+        turn.feed(&line("user", "03:00", "null"));
+        assert_eq!(turn.waiting_since, None, "you answered");
+        // An older line from another chat doesn't change it.
+        turn.feed(&line("assistant", "00:30", r#""end_turn""#));
+        assert_eq!(turn.waiting_since, None);
     }
 
     #[test]

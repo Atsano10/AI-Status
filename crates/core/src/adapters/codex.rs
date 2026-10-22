@@ -154,6 +154,10 @@ fn parse_timestamp(ts: &str) -> Option<i64> {
 /// at once (`parse_session`).
 #[derive(Debug, Default)]
 pub struct SessionParser {
+    /// When the newest line was written, and since when Codex has been waiting for you (it finished its
+    /// task and you haven't started another).
+    newest: i64,
+    waiting_since: Option<i64>,
     session_id: String,
     model: Option<String>,
     effort: Option<String>,
@@ -176,6 +180,15 @@ impl SessionParser {
             ts,
         ) {
             self.latest_limit = Some(window.to_limit_window(observed_at));
+        }
+
+        if let Some(ts) = ts {
+            self.newest = self.newest.max(ts);
+            match line.payload.kind.as_deref() {
+                Some("task_complete") => self.waiting_since = Some(ts),
+                Some("task_started" | "user_message") => self.waiting_since = None,
+                _ => {}
+            }
         }
 
         match line.kind.as_str() {
@@ -227,6 +240,11 @@ impl SessionParser {
         }
     }
 
+    /// Since when Codex has been waiting for you in this session, if it is.
+    pub fn waiting_since(&self) -> Option<i64> {
+        self.waiting_since
+    }
+
     /// The newest limit reading seen so far.
     pub fn latest_limit(&self) -> Option<LimitWindow> {
         self.latest_limit.clone()
@@ -275,6 +293,14 @@ impl CodexReader {
         events
     }
 
+    /// Since when Codex has been waiting for you, from the session written to last.
+    pub fn waiting_since(&self) -> Option<i64> {
+        self.files
+            .states()
+            .max_by_key(|parser| parser.newest)
+            .and_then(SessionParser::waiting_since)
+    }
+
     /// The newest limit reading across every file.
     pub fn latest_limit(&self) -> Option<LimitWindow> {
         self.files
@@ -304,6 +330,10 @@ impl Adapter for CodexAdapter {
 
     fn limits(&self) -> Vec<LimitWindow> {
         self.reader.latest_limit().into_iter().collect()
+    }
+
+    fn waiting_since(&self) -> Option<i64> {
+        self.reader.waiting_since()
     }
 }
 
@@ -422,6 +452,17 @@ mod tests {
                 reasoning: 20,
             }
         );
+    }
+
+    #[test]
+    fn waiting_for_you_after_a_task() {
+        let mut parser = SessionParser::default();
+        parser.feed(r#"{"timestamp":"2026-07-01T22:42:00Z","type":"event_msg","payload":{"type":"task_started"}}"#);
+        assert_eq!(parser.waiting_since(), None);
+        parser.feed(r#"{"timestamp":"2026-07-01T22:43:00Z","type":"event_msg","payload":{"type":"task_complete"}}"#);
+        assert_eq!(parser.waiting_since(), Some(1782945780));
+        parser.feed(r#"{"timestamp":"2026-07-01T22:50:00Z","type":"event_msg","payload":{"type":"user_message"}}"#);
+        assert_eq!(parser.waiting_since(), None);
     }
 
     #[test]

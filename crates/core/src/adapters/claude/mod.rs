@@ -59,6 +59,10 @@ impl Adapter for ClaudeAdapter {
         self.limits.clone()
     }
 
+    fn waiting_since(&self) -> Option<i64> {
+        self.transcripts.waiting_since()
+    }
+
     fn past_readings(&self) -> Vec<(u32, Reading)> {
         self.desktop
             .iter()

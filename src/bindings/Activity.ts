@@ -12,4 +12,9 @@ recentTokens: number,
 /**
  * When the last reply came (Unix seconds), if there was one in the last day.
  */
-lastReplyAt: number | null, };
+lastReplyAt: number | null, 
+/**
+ * Since when the agent has been waiting for your answer (Unix seconds), if it finished in the last
+ * `WAITING_FOR_SECS`. The critter looks at you.
+ */
+waitingSince: number | null, };

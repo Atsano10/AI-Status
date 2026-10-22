@@ -138,8 +138,8 @@ impl Tracker {
     fn snapshots_without_tips(&self, now: i64, thresholds: GaitThresholds) -> Vec<UsageSnapshot> {
         self.adapters
             .iter()
-            .map(|adapter| adapter.agent())
-            .filter_map(|agent| {
+            .map(|adapter| (adapter.agent(), adapter.waiting_since()))
+            .filter_map(|(agent, waiting_since)| {
                 let windows = self
                     .limits
                     .iter()
@@ -157,10 +157,13 @@ impl Tracker {
                         activity::pace(history, window, now)
                     })
                     .collect();
+                let mut activity = activity::activity(events, now, thresholds);
+                activity.waiting_since =
+                    waiting_since.filter(|since| now - since < activity::WAITING_FOR_SECS);
                 Some(UsageSnapshot {
                     agent,
                     windows,
-                    activity: activity::activity(events, now, thresholds),
+                    activity,
                     pace,
                     tip: None,
                 })

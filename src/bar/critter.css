@@ -2,13 +2,16 @@
  * Critter moods (Critter.tsx). Every motion moves whole pixels (1 unit = 2px) with steps(), so the
  * critters stay crisp pixel art instead of sliding smoothly.
  *
- *   idle      breathe + blink                 usage < 75%, nothing written lately
- *   working   >_ face (Codex)                  replying lately (the gait, below, moves the legs)
- *   nervous   fast breathing + sweat drop      75–99%
- *   alarm     shake, then a flashing "!"       limit hit
- *   cheer     jump, arms up, sparkles          the window just reset
- *   sleep     eyes shut, floating "z"          paused, or no reply for 5 minutes
- *   confused  looks around under a "?"         no data yet (bridge not set up)
+ *   idle       breathe + blink                        (the gallery; the bar uses working or sleep)
+ *   working    >_ face (Codex)                        replying lately (the gait, below, moves the legs)
+ *   nervous    fast breathing + sweat drop            75–90%
+ *   tired      droopy eyes, sags, slower steps, sweat 90–99%
+ *   collapsed  shakes under a "!", then flops down    limit hit, until the reset
+ *              with dizzy stars
+ *   cheer      jump, arms up, sparkles                the window just reset
+ *   waiting    still, a "…" by its head               the agent finished and it's your turn
+ *   sleep      eyes shut, floating "z"                paused, or no reply for 5 minutes
+ *   confused   looks around under a "?"               no data yet (bridge not set up)
  */
 
 .critter {
@@ -34,7 +37,7 @@
 /*
  * ---------- gait: how fast the legs go, on top of any mood ----------
  * From the tokens in the last 10 minutes (crates/core/src/activity.rs). Before the moods, so a mood that
- * moves the whole body (alarm shakes, cheer jumps) still wins for the body.
+ * moves the whole body (collapsed shakes, cheer jumps) still wins for the body.
  *
  *   sleeping  legs still (the mood shows the "z")    no reply for 5 minutes
  *   walking   a step every 0.6s                       < 150k tokens
@@ -85,15 +88,98 @@
   animation: c-drip 1.4s steps(4) infinite;
 }
 
-/* ---------- alarm ---------- */
-.mood-alarm .c-sprite {
-  /* Shake for ~2s, then settle into slow breathing. */
+/* ---------- tired ---------- */
+.mood-tired .c-sprite {
+  animation: c-sag 0.8s steps(1) infinite; /* panting, a pixel lower */
+}
+.mood-tired .c-eyes {
+  animation: none;
+  transform: translateY(1px) scaleY(0.5); /* half shut, drooping */
+}
+.mood-tired .c-arm-l,
+.mood-tired .c-arm-r {
+  transform: translateY(1px);
+}
+.mood-tired .x-nervous {
+  animation: c-drip 1.4s steps(4) infinite;
+}
+/* Slower steps than the same gait when fresh. */
+.mood-tired.gait-walking {
+  --stride: 0.9s;
+}
+.mood-tired.gait-jogging {
+  --stride: 0.55s;
+}
+.mood-tired.gait-running {
+  --stride: 0.32s;
+}
+
+/* ---------- collapsed ---------- */
+/* Shakes for ~2s under a flashing "!", then flops: sinks 3 pixels with its legs folded away, eyes shut,
+   stars spinning over its head until the window resets. */
+.mood-collapsed .c-sprite {
   animation:
     c-shake 0.3s steps(1) 6,
-    c-bob 2.4s steps(1) 1.8s infinite;
+    c-flop 0.1s steps(1) 1.8s forwards;
 }
-.mood-alarm .x-alarm {
-  animation: c-flash 1.2s steps(1) infinite;
+.mood-collapsed .c-legs-a,
+.mood-collapsed .c-legs-b {
+  animation: c-fold 0.1s steps(1) 1.8s forwards;
+}
+.mood-collapsed .c-eyes {
+  animation: c-shut 0.1s steps(1) 1.8s forwards;
+}
+.mood-collapsed .x-alarm {
+  animation: c-flash 0.3s steps(1) 6;
+}
+.mood-collapsed .star-1,
+.mood-collapsed .star-2,
+.mood-collapsed .star-3 {
+  animation: c-twinkle 1.2s steps(1) 1.8s infinite;
+}
+.mood-collapsed .star-2 {
+  animation-delay: 2.2s;
+}
+.mood-collapsed .star-3 {
+  animation-delay: 2.6s;
+}
+.mood-collapsed .x-dizzy {
+  opacity: 1;
+}
+
+/* ---------- waiting ---------- */
+.mood-waiting .x-waiting {
+  opacity: 1;
+}
+.mood-waiting .dot-1,
+.mood-waiting .dot-2,
+.mood-waiting .dot-3 {
+  animation: c-twinkle 1.8s steps(1) infinite;
+}
+.mood-waiting .dot-2 {
+  animation-delay: 0.3s;
+}
+.mood-waiting .dot-3 {
+  animation-delay: 0.6s;
+}
+
+/* ---------- climbing: the vertical bar ---------- */
+/* Standing on top of a vertical bar, the critter climbs instead of walking: the body goes up and down a
+   pixel and the arms reach in turn. Only for the everyday moods, so collapse and cheer keep their moves. */
+.pill--vertical
+  :is(.mood-working, .mood-nervous, .mood-tired):not(.gait-sleeping)
+  .c-sprite {
+  animation: c-climb var(--stride) steps(1) infinite;
+}
+.pill--vertical
+  :is(.mood-working, .mood-nervous, .mood-tired):not(.gait-sleeping)
+  :is(.c-arm-l, .c-arm-r) {
+  animation: c-reach var(--stride) steps(1) infinite;
+}
+.pill--vertical
+  :is(.mood-working, .mood-nervous, .mood-tired):not(.gait-sleeping)
+  .c-arm-r {
+  animation-delay: calc(var(--stride) / 2);
 }
 
 /* ---------- cheer ---------- */
@@ -205,6 +291,53 @@
   100% {
     opacity: 0;
     transform: translateY(-1px);
+  }
+}
+@keyframes c-sag {
+  0% {
+    transform: translateY(1px);
+  }
+  50% {
+    transform: translateY(2px);
+  }
+}
+@keyframes c-flop {
+  to {
+    transform: translateY(3px);
+  }
+}
+@keyframes c-fold {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes c-shut {
+  to {
+    transform: scaleY(0.5);
+  }
+}
+@keyframes c-twinkle {
+  0% {
+    opacity: 1;
+  }
+  33% {
+    opacity: 0;
+  }
+}
+@keyframes c-climb {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-1px);
+  }
+}
+@keyframes c-reach {
+  0% {
+    transform: translateY(-2px);
+  }
+  50% {
+    transform: translateY(0);
   }
 }
 @keyframes c-look {

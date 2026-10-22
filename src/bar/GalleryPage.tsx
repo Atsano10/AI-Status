@@ -10,7 +10,14 @@ import Panel from "./Panel";
 import Pill from "./Pill";
 import type { Prefs } from "./prefs";
 import Critter from "./Critter";
-import { critterMood, derivePill, type Mood, type Orientation } from "./state";
+import {
+  critterGait,
+  critterMood,
+  derivePill,
+  type Mood,
+  type Orientation,
+  type PillView,
+} from "./state";
 import type { AgentId, LimitWindow, UsageSnapshot } from "./types";
 
 const NOW = Math.floor(Date.now() / 1000);
@@ -35,6 +42,7 @@ const walking: UsageSnapshot["activity"] = {
   gait: "walking",
   recentTokens: 80_000,
   lastReplyAt: NOW - 120,
+  waitingSince: null,
 };
 const claude = (
   fiveH: number,
@@ -147,14 +155,9 @@ const SAMPLES: Sample[] = [
   },
 ];
 
-/** The sample's gait, like the real bar: paused or no data means a still critter. */
-function gait(
-  snap: UsageSnapshot | null,
-  pausedUntil: Prefs["pausedUntil"],
-): Gait {
-  return pausedUntil !== null
-    ? "sleeping"
-    : (snap?.activity.gait ?? "sleeping");
+/** The sample's legs, by the real bar's rule (critterGait). */
+function gait(view: PillView, snap: UsageSnapshot | null): Gait {
+  return critterGait(view, snap?.activity.gait ?? "sleeping");
 }
 
 const GAITS: Gait[] = ["sleeping", "walking", "jogging", "running"];
@@ -163,8 +166,10 @@ const MOODS: Mood[] = [
   "idle",
   "working",
   "nervous",
-  "alarm",
+  "tired",
+  "collapsed",
   "cheer",
+  "waiting",
   "sleep",
   "confused",
 ];
@@ -252,8 +257,8 @@ export default function GalleryPage() {
                       view={view}
                       orientation={o}
                       agent={s.agent}
-                      mood={critterMood(view, gait(snap, p.pausedUntil))}
-                      gait={gait(snap, p.pausedUntil)}
+                      mood={critterMood(view, gait(view, snap))}
+                      gait={gait(view, snap)}
                     />
                     {o === "horizontal" && (
                       <figcaption>

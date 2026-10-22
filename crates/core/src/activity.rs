@@ -60,7 +60,14 @@ pub struct Activity {
     /// When the last reply came (Unix seconds), if there was one in the last day.
     #[cfg_attr(test, ts(type = "number | null"))]
     pub last_reply_at: Option<i64>,
+    /// Since when the agent has been waiting for your answer (Unix seconds), if it finished in the last
+    /// `WAITING_FOR_SECS`. The critter looks at you.
+    #[cfg_attr(test, ts(type = "number | null"))]
+    pub waiting_since: Option<i64>,
 }
+
+/// After this long without an answer, the critter stops looking at you and falls asleep.
+pub const WAITING_FOR_SECS: i64 = 30 * 60;
 
 /// Works out the activity from `events` (any order, any agents: filter them first for one agent).
 pub fn activity<'a>(
@@ -94,6 +101,7 @@ pub fn activity<'a>(
         gait,
         recent_tokens,
         last_reply_at,
+        waiting_since: None, // the Tracker fills this in from the agent's adapter
     }
 }
 

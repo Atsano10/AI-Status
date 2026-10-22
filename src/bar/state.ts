@@ -8,14 +8,28 @@ export type Level = "normal" | "close" | "out";
 export type PreferredWindow = "5h" | "week";
 
 /** How the critter acts. See critter.css for what each one looks like. */
-/** Moods that are worth waking a faded bar for: a change in how close you are to the limit. Working and
- * sleeping come and go with every reply, so they don't count. */
+/** Moods worth waking a faded bar for: a change in how close you are to the limit, or an agent that's
+ * waiting for you. Working and sleeping come and go with every reply, so they don't count. */
 export function isAlert(mood: Mood): boolean {
-  return mood === "nervous" || mood === "alarm" || mood === "cheer";
+  return (
+    mood === "nervous" ||
+    mood === "tired" ||
+    mood === "collapsed" ||
+    mood === "cheer" ||
+    mood === "waiting"
+  );
 }
 
 export type Mood =
-  "idle" | "working" | "nervous" | "alarm" | "cheer" | "sleep" | "confused";
+  | "idle"
+  | "working"
+  | "nervous"
+  | "tired"
+  | "collapsed"
+  | "cheer"
+  | "waiting"
+  | "sleep"
+  | "confused";
 
 /** What the pill shows. One case per state in the Figma "Pill" component. */
 export type PillView =
@@ -162,12 +176,13 @@ export function updatedText(observedAt: number, now: number): string {
 
 /**
  * The critter's mood (its face and extras) for what the pill shows. `gait` is how hard the agent is working
- * (crates/core/src/activity.rs): a resting agent's critter sleeps, a busy one looks busy.
+ * (crates/core/src/activity.rs): a resting agent's critter sleeps, a busy one looks busy. `waiting`: the
+ * agent finished and it's your turn. Being close to the limit comes first, then waiting for you.
  */
-export function critterMood(view: PillView, gait: Gait): Mood {
+export function critterMood(view: PillView, gait: Gait, waiting = false): Mood {
   switch (view.kind) {
     case "limit-hit":
-      return "alarm";
+      return "collapsed";
     case "just-reset":
       return "cheer";
     case "paused":
@@ -176,7 +191,17 @@ export function critterMood(view: PillView, gait: Gait): Mood {
     case "no-data":
       return "confused";
     case "usage":
-      if (view.level !== "normal") return "nervous";
+      if (view.level === "out") return "tired";
+      if (view.level === "close") return "nervous";
+      if (waiting) return "waiting";
       return gait === "sleeping" ? "sleep" : "working";
   }
+}
+
+/** The legs: still while paused, collapsed, or waiting for you; otherwise the agent's gait. */
+export function critterGait(view: PillView, gait: Gait, waiting = false): Gait {
+  if (view.kind === "paused" || view.kind === "limit-hit" || waiting) {
+    return "sleeping";
+  }
+  return gait;
 }

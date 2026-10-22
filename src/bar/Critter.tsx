@@ -141,40 +141,55 @@ const SPRITES: Record<AgentId, ReactElement[]> = {
   Codex: drawGrid(CODEX_GRID, CODEX_INK),
 };
 
-/** The little extras that float next to the head: "!", "?", "z", sparkles, a sweat drop, speed lines. */
+/**
+ * The little extras around the head: "!", "?", "z", sparkles, a sweat drop, speed lines, dizzy stars and the
+ * "…" of a critter waiting for you. Colours come from the theme, so they read on light pills too.
+ */
 function Extras() {
   return (
     <>
-      <g className="x-alarm" fill="#ff5a5f">
+      <g className="x-alarm" style={{ fill: "var(--level-out)" }}>
         <rect x={19} y={0} width={1} height={4} />
         <rect x={19} y={5} width={1} height={1} />
       </g>
-      <g className="x-confused" fill="#f5f5f7">
+      <g className="x-confused" style={{ fill: "var(--text-primary)" }}>
         <rect x={18} y={0} width={3} height={1} />
         <rect x={20} y={1} width={1} height={1} />
         <rect x={19} y={2} width={2} height={1} />
         <rect x={19} y={3} width={1} height={1} />
         <rect x={19} y={5} width={1} height={1} />
       </g>
-      <g className="x-sleep" fill="#a1a1aa">
+      <g className="x-sleep" style={{ fill: "var(--text-secondary)" }}>
         <rect x={18} y={0} width={4} height={1} />
         <rect x={20} y={1} width={1} height={1} />
         <rect x={19} y={2} width={1} height={1} />
         <rect x={18} y={3} width={4} height={1} />
       </g>
-      <g className="x-cheer" fill="#ffd34e">
+      <g className="x-cheer" style={{ fill: "var(--level-normal)" }}>
         <rect className="spark-1" x={18} y={1} width={3} height={1} />
         <rect className="spark-1" x={19} y={0} width={1} height={3} />
         <rect className="spark-2" x={-2} y={4} width={1} height={1} />
         <rect className="spark-2" x={21} y={6} width={1} height={1} />
       </g>
-      <g className="x-speed" fill="#62626b">
+      <g className="x-speed" style={{ fill: "var(--text-tertiary)" }}>
         <rect x={-2} y={6} width={2} height={1} />
         <rect x={-2} y={9} width={1} height={1} />
         <rect x={-2} y={12} width={2} height={1} />
       </g>
-      <g className="x-nervous" fill="#7fd0ff">
+      <g className="x-nervous" style={{ fill: "#7fd0ff" }}>
         <rect x={18} y={3} width={1} height={2} />
+      </g>
+      {/* Collapsed: three stars over the head, twinkling in turn. */}
+      <g className="x-dizzy" style={{ fill: "var(--level-normal)" }}>
+        <rect className="star-1" x={4} y={0} width={1} height={1} />
+        <rect className="star-2" x={9} y={-1} width={1} height={1} />
+        <rect className="star-3" x={14} y={0} width={1} height={1} />
+      </g>
+      {/* Waiting for you: a "…" by the head, dot by dot. */}
+      <g className="x-waiting" style={{ fill: "var(--text-primary)" }}>
+        <rect className="dot-1" x={17} y={1} width={1} height={1} />
+        <rect className="dot-2" x={19} y={1} width={1} height={1} />
+        <rect className="dot-3" x={21} y={1} width={1} height={1} />
       </g>
     </>
   );

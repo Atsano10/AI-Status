@@ -405,6 +405,7 @@ mod tests {
                 gait: Gait::Walking,
                 recent_tokens: 0,
                 last_reply_at: None,
+                waiting_since: None,
             },
             pace,
             tip: None,
