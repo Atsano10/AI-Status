@@ -98,6 +98,12 @@ button {
   height: var(--track-thickness);
   flex: 1;
 }
+/* The critter's box keeps room on the right for its "!", "?" and "z", which puts the body 2px left of
+   centre. Horizontally that's hidden in the gap before the track; stacked above it, it shows. */
+.pill--vertical .critter {
+  translate: 2px 0;
+}
+
 .pill--vertical .track {
   width: var(--track-thickness);
   height: var(--track-length);
