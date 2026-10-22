@@ -118,14 +118,3 @@ body {
   width: 96px;
   height: 80px;
 }
-.gallery-fonts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 28px 24px;
-}
-.gallery-font {
-  font-family: var(--font-ui);
-}
-.gallery-font figcaption {
-  font-family: -apple-system, system-ui, sans-serif;
-}

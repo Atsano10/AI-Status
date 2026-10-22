@@ -3,6 +3,19 @@
  * (surface/pill → --surface-pill), so a change in one is easy to copy to the other.
  * Dark only for v1: the pill is notch-black so it can merge into the MacBook notch.
  */
+@import "@fontsource/pixelify-sans/400.css";
+@import "@fontsource/pixelify-sans/500.css";
+@import "@fontsource/pixelify-sans/600.css";
+@import "@fontsource/pixelify-sans/700.css";
+
+/* Pixelify draws "~" as a flat dash, so "~23%" would read like "-23%". This face covers only "~"
+   (unicode-range) and comes first in the font lists below, so just that character uses a normal font. */
+@font-face {
+  font-family: "StatusPal Tilde";
+  src: local("Helvetica Neue"), local("Arial");
+  unicode-range: U+007E;
+}
+
 :root {
   /* Surfaces */
   --surface-pill: #0a0a0c;
@@ -30,10 +43,80 @@
   --agent-claude: #e8835f;
   --agent-codex: #5a73f0;
 
+  /* Pixel-art shapes with stepped corners, like the critters. Made by scripts/pixel-shape.mjs:
+     the pill is `24 4` (24px corners in 4px blocks), the panel `12 4`. */
+  --shape-pill: polygon(
+    0 24px,
+    0 20px,
+    0 16px,
+    4px 16px,
+    4px 12px,
+    4px 8px,
+    8px 8px,
+    8px 4px,
+    16px 4px,
+    16px 0,
+    calc(100% - 16px) 0,
+    calc(100% - 16px) 4px,
+    calc(100% - 8px) 4px,
+    calc(100% - 8px) 8px,
+    calc(100% - 4px) 8px,
+    calc(100% - 4px) 12px,
+    calc(100% - 4px) 16px,
+    100% 16px,
+    100% 20px,
+    100% 24px,
+    100% calc(100% - 24px),
+    100% calc(100% - 20px),
+    100% calc(100% - 16px),
+    calc(100% - 4px) calc(100% - 16px),
+    calc(100% - 4px) calc(100% - 12px),
+    calc(100% - 4px) calc(100% - 8px),
+    calc(100% - 8px) calc(100% - 8px),
+    calc(100% - 8px) calc(100% - 4px),
+    calc(100% - 16px) calc(100% - 4px),
+    calc(100% - 16px) 100%,
+    16px 100%,
+    16px calc(100% - 4px),
+    8px calc(100% - 4px),
+    8px calc(100% - 8px),
+    4px calc(100% - 8px),
+    4px calc(100% - 12px),
+    4px calc(100% - 16px),
+    0 calc(100% - 16px),
+    0 calc(100% - 20px),
+    0 calc(100% - 24px)
+  );
+  --shape-panel: polygon(
+    0 12px,
+    0 8px,
+    0 4px,
+    4px 4px,
+    4px 0,
+    calc(100% - 4px) 0,
+    calc(100% - 4px) 4px,
+    100% 4px,
+    100% 8px,
+    100% 12px,
+    100% calc(100% - 12px),
+    100% calc(100% - 8px),
+    100% calc(100% - 4px),
+    calc(100% - 4px) calc(100% - 4px),
+    calc(100% - 4px) 100%,
+    4px 100%,
+    4px calc(100% - 4px),
+    0 calc(100% - 4px),
+    0 calc(100% - 8px),
+    0 calc(100% - 12px)
+  );
+  /* The 2px pixel frame around them, and the faint highlight along their top edge */
+  --surface-frame: #26262c;
+  --surface-highlight: rgba(245, 245, 247, 0.05);
+  /* The fill comes in blocks like a game health bar: a segment, then a gap */
+  --segment: 6px;
+  --segment-gap: 2px;
+
   /* Shape & spacing */
-  --radius-pill: 27px;
-  --radius-panel: 16px;
-  --radius-track: 4px;
   --space-xs: 4px;
   --space-sm: 8px;
   --space-md: 12px;
@@ -55,11 +138,12 @@
   --text-md: 13px;
   --text-lg: 15px;
 
-  /* Type: the real Apple fonts (Figma shows Inter / Nunito as stand-ins) */
+  /* Type: Pixelify Sans, a pixel font to match the critters (picked 2026-10-22, option F). Bundled with
+     the app, so it works offline. */
   --font-ui:
-    -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    "StatusPal Tilde", "Pixelify Sans", -apple-system, system-ui, sans-serif;
   --font-num:
-    ui-rounded, "SF Pro Rounded", -apple-system, system-ui, sans-serif;
+    "StatusPal Tilde", "Pixelify Sans", -apple-system, system-ui, sans-serif;
 
   /* How visible the bar is once it fades (Bar.tsx useFaded) */
   --faded-opacity: 0.4;

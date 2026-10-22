@@ -70,7 +70,8 @@ fn create_bar(app: &AppHandle) -> tauri::Result<()> {
         .transparent(true)
         // macOS draws the shadow from the page's opaque pixels, so it follows the pill and panel shapes.
         .has_shadow(true)
-        .corner_radius(16.0)
+        // Small, so it never rounds off the stepped pixel corners the page draws (--shape-pill / --shape-panel).
+        .corner_radius(4.0)
         .hides_on_deactivate(false)
         .no_activate(true)
         .with_window(|w| {

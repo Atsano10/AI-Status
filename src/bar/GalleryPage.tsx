@@ -1,5 +1,5 @@
 // Dev-only page that draws every bar state with sample data (entry: gallery-main.tsx).
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState } from "react";
 import { BarView } from "./Bar";
 import Panel from "./Panel";
 import Pill from "./Pill";
@@ -114,51 +114,6 @@ const SAMPLES: Sample[] = [
   },
 ];
 
-const SF =
-  '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif';
-const SF_ROUNDED =
-  'ui-rounded, "SF Pro Rounded", -apple-system, system-ui, sans-serif';
-
-/** Font candidates: `ui` for the text, `num` for the numbers. */
-const FONTS: { name: string; note: string; ui: string; num: string }[] = [
-  {
-    name: "A · Current",
-    note: "SF Pro + SF Pro Rounded numbers",
-    ui: SF,
-    num: SF_ROUNDED,
-  },
-  {
-    name: "B · All rounded",
-    note: "SF Pro Rounded everywhere",
-    ui: SF_ROUNDED,
-    num: SF_ROUNDED,
-  },
-  {
-    name: "C · Nunito",
-    note: "soft and friendly (the Figma stand-in)",
-    ui: '"Nunito", sans-serif',
-    num: '"Nunito", sans-serif',
-  },
-  {
-    name: "D · Geist",
-    note: "clean and modern",
-    ui: '"Geist Sans", sans-serif',
-    num: '"Geist Sans", sans-serif',
-  },
-  {
-    name: "E · JetBrains Mono",
-    note: "terminal look, like the agents",
-    ui: '"JetBrains Mono", monospace',
-    num: '"JetBrains Mono", monospace',
-  },
-  {
-    name: "F · Pixelify",
-    note: "pixel font to match the critters",
-    ui: '"Pixelify Sans", sans-serif',
-    num: '"Pixelify Sans", sans-serif',
-  },
-];
-
 const MOODS: Mood[] = [
   "idle",
   "working",
@@ -216,55 +171,6 @@ export default function GalleryPage() {
               })}
             </div>
           ))}
-        </div>
-      </section>
-
-      <section>
-        <h2>Fonts</h2>
-        <p className="gallery-sub">
-          The same pill and panel in each candidate font. Pick a letter.
-        </p>
-        <div className="gallery-fonts">
-          {FONTS.map((f) => {
-            const sample = SAMPLES[0];
-            const snap = sample.snapshots[0];
-            const view = derivePill(snap, sample.agent, "5h", false, NOW);
-            return (
-              <figure
-                key={f.name}
-                className="gallery-font"
-                style={
-                  {
-                    "--font-ui": f.ui,
-                    "--font-num": f.num,
-                  } as CSSProperties
-                }
-              >
-                <figcaption>
-                  <b>{f.name}</b> {f.note}
-                </figcaption>
-                <div className="stage stage--horizontal">
-                  <Pill
-                    view={view}
-                    orientation="horizontal"
-                    agent={sample.agent}
-                    mood="idle"
-                  />
-                  <Panel
-                    snapshots={sample.snapshots}
-                    agent={sample.agent}
-                    now={NOW}
-                    prefs={base}
-                    paused={false}
-                    onPrefs={() => {}}
-                    onHide={() => {}}
-                    onQuit={() => {}}
-                    closing={false}
-                  />
-                </div>
-              </figure>
-            );
-          })}
         </div>
       </section>
 
