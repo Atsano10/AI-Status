@@ -2,10 +2,12 @@
 //! - `statusline`: the 5-hour and weekly limit %, written by our statusLine bridge
 //! - `transcripts`: Claude Code's chat logs, for the tokens each reply used
 //! - `bridge`: connecting the statusLine bridge in Claude Code's settings
+//! - `agents`: the helper pack, small subagents on cheaper models
 //! - later maybe: Claude Desktop's usage history (fallback)
 
 use std::path::PathBuf;
 
+pub mod agents;
 pub mod bridge;
 pub mod statusline;
 pub mod transcripts;

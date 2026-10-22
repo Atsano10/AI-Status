@@ -58,8 +58,21 @@ button {
   gap: var(--space-lg);
   padding: 10px var(--space-md);
 }
+.settings-card-note {
+  margin: 0;
+  padding: 10px var(--space-md);
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--text-tertiary);
+}
+.settings-card-note + .settings-row,
 .settings-row + .settings-row {
   border-top: 1px solid var(--surface-edge);
+}
+.settings-row--stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
 }
 .settings-row-text {
   display: flex;

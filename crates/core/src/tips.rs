@@ -293,7 +293,7 @@ fn quick_turns_on_high_effort(agent: AgentId, session: &[&UsageEvent]) -> Option
             "/effort medium",
         ),
         AgentId::Codex => (
-            "Quick turns on high effort burn your Codex limit. Pick medium effort in /model.",
+            "Quick turns on high effort burn your Codex limit. Try medium: /model, or Settings ▸ Codex.",
             "/model",
         ),
     };

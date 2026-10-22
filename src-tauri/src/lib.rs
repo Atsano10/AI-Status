@@ -2,6 +2,8 @@ mod active;
 #[cfg(target_os = "macos")]
 mod bar;
 mod bridge;
+mod codex;
+mod helpers;
 #[cfg(target_os = "macos")]
 mod hotkey;
 mod login;
@@ -71,6 +73,12 @@ pub fn run() {
             login::set_launch_at_login,
             bridge::get_bridge_status,
             bridge::set_bridge_connected,
+            helpers::get_helpers,
+            helpers::set_helper,
+            codex::get_codex_setup,
+            codex::set_codex_effort,
+            codex::undo_codex_effort,
+            codex::set_codex_profiles,
             #[cfg(target_os = "macos")]
             bar::resize_bar,
             #[cfg(target_os = "macos")]

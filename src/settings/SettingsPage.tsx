@@ -1,6 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useState, type ReactNode } from "react";
 import type { BridgeStatus } from "../bindings/BridgeStatus";
+import type { CodexSetup } from "../bindings/CodexSetup";
+import type { HelperInfo } from "../bindings/HelperInfo";
 import type { Orientation, PreferredWindow } from "../bar/state";
 import type { AgentId } from "../bar/types";
 import ShortcutRecorder from "./ShortcutRecorder";
@@ -140,6 +142,14 @@ export default function SettingsPage() {
         <ClaudeBridge />
       </Section>
 
+      <Section title="Claude Code helpers">
+        <Helpers />
+      </Section>
+
+      <Section title="Codex">
+        <CodexSettings />
+      </Section>
+
       <Section title="General">
         <LaunchAtLogin />
       </Section>
@@ -275,6 +285,140 @@ function bridgeHint(status: BridgeStatus): string {
   }
 }
 
+/**
+ * The helper pack (crates/core/src/adapters/claude/agents.rs): small subagents on cheaper models that Claude
+ * hands simple jobs to by itself. Each switch adds or removes one file in ~/.claude/agents.
+ */
+function Helpers() {
+  const [helpers, setHelpers] = useState<HelperInfo[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    invoke<HelperInfo[]>("get_helpers").then(setHelpers);
+  }, []);
+  if (helpers === null) return null;
+
+  return (
+    <>
+      <p className="settings-card-note">
+        {error ??
+          "Small agents on cheaper models. Claude hands them simple jobs by itself, each in its own chat, so yours stays small and your limit lasts longer. Each one is a file in ~/.claude/agents."}
+      </p>
+      {helpers.map((h) => (
+        <Row
+          key={h.name}
+          label={h.name}
+          hint={
+            h.state === "yours"
+              ? "You have your own agent with this name, so it's left alone."
+              : `${h.summary} · ${h.model === "haiku" ? "Haiku" : "Sonnet"}`
+          }
+        >
+          <Switch
+            checked={h.state === "on"}
+            disabled={h.state === "yours"}
+            onChange={(on) =>
+              invoke<HelperInfo[]>("set_helper", { name: h.name, on })
+                .then((list) => {
+                  // The first file in a new ~/.claude/agents folder needs one restart of Claude Code.
+                  const first = on && !helpers.some((x) => x.state === "on");
+                  setHelpers(list);
+                  setError(
+                    first
+                      ? "Added. Restart Claude Code once so it finds the new helpers folder; after that, changes show up by themselves."
+                      : null,
+                  );
+                })
+                .catch((e) => setError(String(e)))
+            }
+          />
+        </Row>
+      ))}
+    </>
+  );
+}
+
+const EFFORT_NAMES: Record<string, string> = {
+  low: "Low",
+  medium: "Medium",
+  high: "High",
+  xhigh: "Extra high",
+};
+
+/**
+ * Codex's default effort and the `codex` profiles (crates/core/src/adapters/codex_config.rs). Both edit
+ * ~/.codex/config.toml, keeping everything else in it as it was, with a backup saved before the first change.
+ */
+function CodexSettings() {
+  const [setup, setSetup] = useState<CodexSetup | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    const check = () =>
+      invoke<CodexSetup | null>("get_codex_setup").then(setSetup);
+    check();
+    // The Codex app writes this file too, so look again when the window comes forward.
+    window.addEventListener("focus", check);
+    return () => window.removeEventListener("focus", check);
+  }, []);
+  if (setup === null) return null;
+  if (!setup.found)
+    return (
+      <p className="settings-card-note">Codex isn't set up on this Mac.</p>
+    );
+
+  const run = (command: string, args: Record<string, unknown> = {}) =>
+    invoke<CodexSetup>(command, args)
+      .then((s) => {
+        setSetup(s);
+        setError(null);
+      })
+      .catch((e) => setError(String(e)));
+
+  return (
+    <>
+      <Row
+        label="Default effort"
+        stacked
+        hint={
+          error ??
+          (setup.effortBefore
+            ? `Was ${EFFORT_NAMES[setup.effortBefore] ?? setup.effortBefore} before StatusPal changed it. New Codex chats use this; restart the Codex app if it doesn't.`
+            : "How hard Codex thinks, in the app and the codex command. Most turns don't need Extra high, and it uses up your limit fastest.")
+        }
+      >
+        <div className="settings-buttons">
+          <Choice<string>
+            value={setup.effort ?? ""}
+            options={Object.entries(EFFORT_NAMES)}
+            onChange={(effort) => run("set_codex_effort", { effort })}
+          />
+          {setup.effortBefore && (
+            <button
+              className="settings-button"
+              onClick={() => run("undo_codex_effort")}
+            >
+              Undo
+            </button>
+          )}
+        </div>
+      </Row>
+      <Row
+        label="Profiles for the codex command"
+        hint={
+          setup.profiles === "yours"
+            ? "You already have a quick, normal or deep profile, so yours are left alone."
+            : "Adds quick (low effort), normal (medium) and deep (extra high). In Terminal: codex --profile quick."
+        }
+      >
+        <Switch
+          checked={setup.profiles === "on"}
+          disabled={setup.profiles === "yours"}
+          onChange={(on) => run("set_codex_profiles", { on })}
+        />
+      </Row>
+    </>
+  );
+}
+
 /** Open at login (src-tauri/src/login.rs). macOS keeps this one, not our settings file. */
 function LaunchAtLogin() {
   const [enabled, setEnabled] = useState<boolean | null>(null);
@@ -308,9 +452,17 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function Row(props: { label: string; hint?: string; children: ReactNode }) {
+function Row(props: {
+  label: string;
+  hint?: string;
+  /** Put the control under the text instead of beside it, for wide controls. */
+  stacked?: boolean;
+  children: ReactNode;
+}) {
   return (
-    <div className="settings-row">
+    <div
+      className={`settings-row${props.stacked ? " settings-row--stacked" : ""}`}
+    >
       <div className="settings-row-text">
         <span className="settings-row-label">{props.label}</span>
         {props.hint && <span className="settings-row-hint">{props.hint}</span>}
