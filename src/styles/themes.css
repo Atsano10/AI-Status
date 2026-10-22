@@ -18,6 +18,9 @@
   --codex-light: #a993ff;
   --codex-main: #7b5cff;
   --codex-shade: #5b3fe0;
+  --gemini-light: #8ff7ff;
+  --gemini-main: #2ee6ff;
+  --gemini-shade: #12a8c4;
 }
 :root[data-palette="sunset"] {
   --level-normal: #ffc857;
@@ -31,6 +34,9 @@
   --codex-light: #6ea3c4;
   --codex-main: #457b9d;
   --codex-shade: #2f5d7c;
+  --gemini-light: #f2a5c0;
+  --gemini-main: #e07a9f;
+  --gemini-shade: #b9577c;
 }
 :root[data-palette="cool"] {
   --level-normal: #7dd3fc;
@@ -44,6 +50,9 @@
   --codex-light: #a5b4fc;
   --codex-main: #818cf8;
   --codex-shade: #6366f1;
+  --gemini-light: #99f6e4;
+  --gemini-main: #2dd4bf;
+  --gemini-shade: #0f9f8f;
 }
 :root[data-palette="pastel"] {
   --level-normal: #fde68a;
@@ -57,6 +66,9 @@
   --codex-light: #c7d2fe;
   --codex-main: #a5b4fc;
   --codex-shade: #818cf8;
+  --gemini-light: #d9f99d;
+  --gemini-main: #bef264;
+  --gemini-shade: #8fc53a;
 }
 
 /* ---------- Light theme ---------- */

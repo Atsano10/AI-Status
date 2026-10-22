@@ -321,6 +321,9 @@ button {
 .agent-dot--codex {
   background: var(--agent-codex);
 }
+.agent-dot--gemini {
+  background: var(--agent-gemini);
+}
 .panel-meta {
   font-size: var(--text-sm);
   color: var(--text-tertiary);

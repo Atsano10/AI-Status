@@ -125,24 +125,33 @@ fn copy(mut tip: Tip, command: &str) -> Tip {
 
 // ---------- rules about your limits (they work from the % alone) ----------
 
-/// At the pace of the last hour, the 5-hour window runs out before it resets.
+/// At the pace of the last hour, a short window (5 hours, or Gemini's day) runs out before it resets.
 fn short_window_pace(snapshot: &UsageSnapshot, now: i64) -> Option<Tip> {
-    let pace = snapshot.pace.iter().find(|p| p.window_minutes == 300)?;
-    let runs_out = pace.runs_out_at?;
-    let window = snapshot.windows.iter().find(|w| w.window_minutes == 300)?;
-    let resets = window.resets_at?;
-    Some(tip(
-        "pace-5h",
-        snapshot.agent,
-        Severity::Warning,
-        1.0,
-        format!(
-            "At this pace you hit your 5h limit in {} (it resets in {}).",
-            duration(runs_out - now),
-            duration(resets - now)
-        ),
-        format!("Using about {:.0}% an hour lately", pace.pct_per_hour),
-    ))
+    snapshot
+        .windows
+        .iter()
+        .filter(|w| w.window_minutes <= 24 * 60)
+        .find_map(|window| {
+            let pace = snapshot
+                .pace
+                .iter()
+                .find(|p| p.window_minutes == window.window_minutes)?;
+            let runs_out = pace.runs_out_at?;
+            let resets = window.resets_at?;
+            Some(tip(
+                "pace-5h",
+                snapshot.agent,
+                Severity::Warning,
+                1.0,
+                format!(
+                    "At this pace you hit your {} limit in {} (it resets in {}).",
+                    window_name(window),
+                    duration(runs_out - now),
+                    duration(resets - now)
+                ),
+                format!("Using about {:.0}% an hour lately", pace.pct_per_hour),
+            ))
+        })
 }
 
 /// A long window (a week, or Codex's month) is filling much faster than an even pace would.
@@ -296,6 +305,7 @@ fn quick_turns_on_high_effort(agent: AgentId, session: &[&UsageEvent]) -> Option
             "Quick turns on high effort burn your Codex limit. Try medium: /model, or Settings ▸ Codex.",
             "/model",
         ),
+        AgentId::Gemini => return None, // Gemini CLI doesn't log an effort
     };
     Some(copy(
         tip(
@@ -344,6 +354,7 @@ fn quick_streak<'a>(session: &[&'a UsageEvent]) -> Option<Vec<&'a UsageEvent>> {
 fn window_name(window: &LimitWindow) -> &'static str {
     match window.window_minutes {
         300 => "5h",
+        1440 => "daily",
         10080 => "weekly",
         43200 => "30-day",
         _ => "",

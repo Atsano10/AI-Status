@@ -8,6 +8,7 @@ use crate::tips::Tip;
 pub enum AgentId {
     Claude,
     Codex,
+    Gemini,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

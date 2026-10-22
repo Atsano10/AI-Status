@@ -166,7 +166,22 @@ button {
   }
 }
 
-/* ---------- Buttons, status, switch ---------- */
+/* ---------- Buttons, status, switch, dropdown ---------- */
+
+.settings-select {
+  flex: none;
+  max-width: 220px;
+  padding: 5px 8px;
+  border: 1px solid var(--surface-hairline);
+  border-radius: 8px;
+  background: var(--surface-track);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+:root[data-cards="pixel"] .settings-select {
+  border-radius: 0;
+}
 
 .settings-buttons {
   display: flex;

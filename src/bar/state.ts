@@ -55,17 +55,21 @@ export const JUST_RESET_SECS = 15 * 60;
 /** Short label for the pill: "5h", "wk", "30d". */
 export function shortLabel(w: LimitWindow): string {
   return (
-    { [FIVE_HOURS]: "5h", [WEEK]: "wk", 43200: "30d" }[w.window_minutes] ??
-    `${w.window_minutes}m`
+    { [FIVE_HOURS]: "5h", 1440: "day", [WEEK]: "wk", 43200: "30d" }[
+      w.window_minutes
+    ] ?? `${w.window_minutes}m`
   );
 }
 
-/** Long label for the panel: "5 hours", "Week", "30 days". */
+/** Long label for the panel: "5 hours", "Today", "Week", "30 days". */
 export function longLabel(w: LimitWindow): string {
   return (
-    { [FIVE_HOURS]: "5 hours", [WEEK]: "Week", 43200: "30 days" }[
-      w.window_minutes
-    ] ?? `${w.window_minutes} min`
+    {
+      [FIVE_HOURS]: "5 hours",
+      1440: "Today",
+      [WEEK]: "Week",
+      43200: "30 days",
+    }[w.window_minutes] ?? `${w.window_minutes} min`
   );
 }
 

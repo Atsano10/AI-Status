@@ -50,10 +50,14 @@
   --codex-shade: #3549c9;
   --codex-visor: #151a46;
   --codex-glow: #7ff3ee;
+  --gemini-light: #d4bcfa;
+  --gemini-main: #a07fe0;
+  --gemini-shade: #7652c2;
 
   /* Agent accents (the dots next to agent names), from the critters */
   --agent-claude: var(--claude-main);
   --agent-codex: var(--codex-main);
+  --agent-gemini: var(--gemini-main);
 
   /* Pixel-art shapes with stepped corners, like the critters. Made by scripts/pixel-shape.mjs:
      the pill is `24 4` (24px corners in 4px blocks), the panel `12 4`. */

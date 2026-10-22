@@ -5,6 +5,7 @@ import type { BarShows } from "./BarShows";
 import type { Behaviour } from "./Behaviour";
 import type { Corners } from "./Corners";
 import type { GaitThresholds } from "./GaitThresholds";
+import type { GeminiPlan } from "./GeminiPlan";
 import type { Orientation } from "./Orientation";
 import type { Palette } from "./Palette";
 import type { Surface } from "./Surface";
@@ -40,6 +41,10 @@ gaitThresholds: GaitThresholds,
  * Show tips in the panel (see `tips.rs`).
  */
 tips: boolean, 
+/**
+ * Your Gemini plan (Settings ▸ Gemini).
+ */
+geminiPlan: GeminiPlan, 
 /**
  * The look (Settings ▸ Look).
  */

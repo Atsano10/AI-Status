@@ -15,7 +15,7 @@ use std::time::Duration;
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 
 use crate::adapters::claude::{statusline, transcripts};
-use crate::adapters::codex;
+use crate::adapters::{codex, gemini};
 
 /// How long the files must stay quiet before we re-read them. One save can fire several events
 /// (write the temp file, then rename it over the real one), and this turns them into one update.
@@ -56,6 +56,13 @@ pub fn spawn(on_change: impl Fn() + Send + 'static) -> notify::Result<Recommende
         watcher.watch(&dir, RecursiveMode::Recursive)?;
     }
 
+    // Gemini CLI: chat logs under ~/.gemini/tmp/<project>/chats.
+    if let Some(dir) = gemini::gemini_dir().map(|d| d.join("tmp"))
+        && dir.is_dir()
+    {
+        watcher.watch(&dir, RecursiveMode::Recursive)?;
+    }
+
     // Codex: new sessions land in new year/month/day folders, so watch everything below. Skip it if
     // Codex isn't installed.
     if let Some(dir) = codex::sessions_dir()
@@ -79,6 +86,7 @@ fn is_relevant(path: &Path) -> bool {
     path.file_name() == Some(std::ffi::OsStr::new(statusline::FILE_NAME))
         || codex::is_rollout_file(path)
         || transcripts::is_transcript(path)
+        || gemini::is_chat(path)
 }
 
 /// Waits for the next burst of messages and swallows all of it.

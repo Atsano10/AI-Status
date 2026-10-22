@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useState, type ReactNode } from "react";
 import type { BridgeStatus } from "../bindings/BridgeStatus";
 import type { Corners } from "../bindings/Corners";
+import type { GeminiPlan } from "../bindings/GeminiPlan";
 import type { Palette } from "../bindings/Palette";
 import type { Surface } from "../bindings/Surface";
 import type { Theme } from "../bindings/Theme";
@@ -176,6 +177,7 @@ export default function SettingsPage() {
               ["auto", "Auto"],
               ["Claude", "Claude"],
               ["Codex", "Codex"],
+              ["Gemini", "Gemini"],
             ]}
             onChange={(pin) =>
               updateSettings({ pinned: pin === "auto" ? null : pin })
@@ -219,6 +221,27 @@ export default function SettingsPage() {
 
       <Section title="Codex">
         <CodexSettings />
+      </Section>
+
+      <Section title="Gemini">
+        <Row
+          label="Your plan"
+          hint={`Gemini CLI saves no %, so StatusPal counts today's requests against your plan's daily allowance (it resets at midnight Pacific time).${settings.geminiPlan === "auto" ? " Auto goes by how you sign in: a Google account counts as 1,000 a day." : ""}`}
+        >
+          <select
+            className="settings-select"
+            value={settings.geminiPlan}
+            onChange={(e) =>
+              updateSettings({ geminiPlan: e.target.value as GeminiPlan })
+            }
+          >
+            {GEMINI_PLANS.map(([plan, name]) => (
+              <option key={plan} value={plan}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </Row>
       </Section>
 
       <Section title="General">
@@ -407,6 +430,18 @@ function Helpers() {
     </>
   );
 }
+
+/** Gemini plans and their daily requests (crates/core/src/adapters/gemini.rs). */
+const GEMINI_PLANS: [GeminiPlan, string][] = [
+  ["auto", "Auto"],
+  ["personal", "Google account · 1,000/day"],
+  ["pro", "Google AI Pro · 1,500/day"],
+  ["ultra", "Google AI Ultra · 2,000/day"],
+  ["standard", "Code Assist Standard · 1,500/day"],
+  ["enterprise", "Code Assist Enterprise · 2,000/day"],
+  ["apiFree", "API key, free · 250/day"],
+  ["apiPaid", "API key, paid · no daily limit"],
+];
 
 const EFFORT_NAMES: Record<string, string> = {
   low: "Low",

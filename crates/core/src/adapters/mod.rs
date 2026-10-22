@@ -10,6 +10,7 @@ use crate::model::{AgentId, LimitWindow, UsageEvent};
 pub mod claude;
 pub mod codex;
 pub mod codex_config;
+pub mod gemini;
 
 /// What every agent's adapter does.
 pub trait Adapter: Debug + Send {
@@ -40,5 +41,6 @@ pub fn all() -> Vec<Box<dyn Adapter>> {
     vec![
         Box::new(claude::ClaudeAdapter::default()),
         Box::new(codex::CodexAdapter::default()),
+        Box::new(gemini::GeminiAdapter::default()),
     ]
 }

@@ -95,6 +95,29 @@ pub enum Corners {
     Pixel,
 }
 
+/// Your Gemini plan, for its daily request allowance (`adapters/gemini.rs`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
+#[serde(rename_all = "camelCase")]
+pub enum GeminiPlan {
+    /// From how you sign in to Gemini CLI: a Google account is Personal, an API key the free tier.
+    Auto,
+    /// Google account (Gemini Code Assist for individuals): 1,000 requests a day.
+    Personal,
+    /// Google AI Pro: 1,500.
+    Pro,
+    /// Google AI Ultra: 2,000.
+    Ultra,
+    /// Gemini Code Assist Standard: 1,500.
+    Standard,
+    /// Gemini Code Assist Enterprise: 2,000.
+    Enterprise,
+    /// Gemini API key, free tier: 250.
+    ApiFree,
+    /// Gemini API key, pay as you go: no fixed number.
+    ApiPaid,
+}
+
 /// Where the bar sits on one display: its top-left corner, in points from the top-left of the display's
 /// usable area (below the menu bar).
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -128,6 +151,8 @@ pub struct Settings {
     pub gait_thresholds: GaitThresholds,
     /// Show tips in the panel (see `tips.rs`).
     pub tips: bool,
+    /// Your Gemini plan (Settings ▸ Gemini).
+    pub gemini_plan: GeminiPlan,
     /// The look (Settings ▸ Look).
     pub palette: Palette,
     pub theme: Theme,
@@ -161,6 +186,7 @@ impl Default for Settings {
             bar_display: None,
             gait_thresholds: GaitThresholds::default(),
             tips: true,
+            gemini_plan: GeminiPlan::Auto,
             palette: Palette::Classic,
             theme: Theme::Dark,
             surface: Surface::Solid,
@@ -264,6 +290,7 @@ mod tests {
                 run_at: 200_000,
             },
             tips: false,
+            gemini_plan: GeminiPlan::Ultra,
             palette: Palette::Sunset,
             theme: Theme::System,
             surface: Surface::Glass,

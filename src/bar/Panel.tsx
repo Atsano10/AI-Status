@@ -67,7 +67,8 @@ export default function Panel(props: PanelProps) {
           )}
           {!agent && (
             <p className="panel-note">
-              Switch to Claude, Codex, or a terminal running one.
+              Switch to Claude, Codex, or a terminal running one of them or
+              Gemini CLI.
             </p>
           )}
           {active?.tip && !paused && (
@@ -259,6 +260,13 @@ function NoData({
     return (
       <p className="panel-note">
         No Codex numbers yet. They show up after your next Codex turn.
+      </p>
+    );
+  if (agent === "Gemini")
+    return (
+      <p className="panel-note">
+        No Gemini numbers yet. Today's requests show up after your next Gemini
+        CLI reply. (On a paid API key there's no daily limit to show.)
       </p>
     );
   return (

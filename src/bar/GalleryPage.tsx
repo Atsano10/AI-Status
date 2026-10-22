@@ -62,6 +62,14 @@ const codex: UsageSnapshot = {
   pace: [],
   tip: null,
 };
+/** Gemini: 340 of 1,000 requests today, resetting at midnight Pacific. */
+const gemini: UsageSnapshot = {
+  agent: "Gemini",
+  windows: [win(1440, 34, 9 * H, true)],
+  activity: walking,
+  pace: [],
+  tip: null,
+};
 const base: Prefs = {
   orientation: "horizontal",
   barShows: "5h",
@@ -152,6 +160,12 @@ const SAMPLES: Sample[] = [
     snapshots: [claude(23), codex],
     agent: "Claude",
     prefs: { pausedUntil: "manual" },
+  },
+  {
+    name: "Gemini",
+    note: "requests today",
+    snapshots: [claude(23), codex, gemini],
+    agent: "Gemini",
   },
 ];
 
@@ -276,7 +290,7 @@ export default function GalleryPage() {
       <section>
         <h2>Critters</h2>
         <div className="gallery-critters">
-          {(["Claude", "Codex"] as const).map((agent) => (
+          {(["Claude", "Codex", "Gemini"] as const).map((agent) => (
             <div key={agent} className="gallery-row">
               {MOODS.map((mood) => (
                 <figure key={mood} className="gallery-critter">
@@ -302,7 +316,7 @@ export default function GalleryPage() {
           can walk, jog or run.
         </p>
         <div className="gallery-critters">
-          {(["Claude", "Codex"] as const).map((agent) => (
+          {(["Claude", "Codex", "Gemini"] as const).map((agent) => (
             <div key={agent} className="gallery-row">
               {GAITS.map((g) => (
                 <figure key={g} className="gallery-critter">

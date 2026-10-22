@@ -1,4 +1,5 @@
-// The pixel critters that sit on the pill: an orange block for Claude, a blue cloud-bot for Codex.
+// The pixel critters that sit on the pill: an orange block for Claude, a blue cloud-bot for Codex, a purple
+// star for Gemini.
 // Each sprite is an 18×18 grid of letters. Every letter is a colour and a body part, so CSS can animate
 // the parts separately (blink the eyes, walk the legs, wave the arms). Moods live in critter.css.
 import type { ReactElement } from "react";
@@ -92,6 +93,42 @@ const CODEX_INK: Record<string, Ink> = {
   Y: { color: CODEX_LINE, part: "legs-b" },
 };
 
+// Gemini: a four-pointed star with two eyes and little legs. Its side points are its arms.
+const GEMINI_GRID = [
+  "........HH........",
+  "........HH........",
+  ".......HOOD.......",
+  "......HOOOOD......",
+  ".....HOOOOOOD.....",
+  "....HOOOOOOOOD....",
+  "..HHOOKKOOKKOODD..",
+  "aaOOOOKKOOKKOOOOrr",
+  "..DDOOOOOOOOOODD..",
+  "....DOOOOOOOOD....",
+  ".....DOOOOOOD.....",
+  "......DOOOOD......",
+  ".......DOOD.......",
+  "......x.DD.y......",
+  "......x....y......",
+  "......X....Y......",
+  "..................",
+  "..................",
+];
+const GEMINI_MAIN = "var(--gemini-main)";
+const GEMINI_SHADE = "var(--gemini-shade)";
+const GEMINI_INK: Record<string, Ink> = {
+  H: { color: "var(--gemini-light)", part: "body" },
+  O: { color: GEMINI_MAIN, part: "body" },
+  D: { color: GEMINI_SHADE, part: "body" },
+  K: { color: "#1c1b1f", part: "eyes" },
+  a: { color: GEMINI_MAIN, part: "arm-l" },
+  r: { color: GEMINI_MAIN, part: "arm-r" },
+  x: { color: GEMINI_MAIN, part: "legs-a" },
+  X: { color: GEMINI_SHADE, part: "legs-a" },
+  y: { color: GEMINI_MAIN, part: "legs-b" },
+  Y: { color: GEMINI_SHADE, part: "legs-b" },
+};
+
 /** Codex's `>_` face, shown instead of its eyes while it's working. */
 const CODEX_PROMPT: [number, number, number][] = [
   [5, 5, 1],
@@ -139,6 +176,7 @@ function drawGrid(grid: string[], ink: Record<string, Ink>) {
 const SPRITES: Record<AgentId, ReactElement[]> = {
   Claude: drawGrid(CLAUDE_GRID, CLAUDE_INK),
   Codex: drawGrid(CODEX_GRID, CODEX_INK),
+  Gemini: drawGrid(GEMINI_GRID, GEMINI_INK),
 };
 
 /**

@@ -10,7 +10,7 @@ use std::path::Path;
 use std::time::UNIX_EPOCH;
 
 use crate::adapters::claude::statusline;
-use crate::adapters::codex;
+use crate::adapters::{codex, gemini};
 use crate::model::AgentId;
 
 /// How recent an agent's last write must be to count as "you're using it" (rule 3).
@@ -116,6 +116,14 @@ pub fn last_writes() -> Vec<(AgentId, i64)> {
         && let Some(time) = files.iter().filter_map(|f| modified_secs(f)).max()
     {
         writes.push((AgentId::Codex, time));
+    }
+
+    // Gemini CLI runs in a terminal too.
+    if let Some(dir) = gemini::gemini_dir()
+        && let Ok(files) = gemini::find_chats(&dir)
+        && let Some(time) = files.iter().filter_map(|f| modified_secs(f)).max()
+    {
+        writes.push((AgentId::Gemini, time));
     }
 
     writes

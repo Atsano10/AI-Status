@@ -14,18 +14,19 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
     let hotkey = settings::get(app).hotkey;
     let toggle = MenuItem::with_id(app, "toggle", "Show/Hide Bar", true, Some(hotkey.as_str()))?;
 
-    // "Pin agent ▸ Auto / Claude / Codex". Exactly one has a checkmark.
+    // "Pin agent ▸ Auto / Claude / Codex / Gemini". Exactly one has a checkmark.
     let pins = PinItems {
         auto: CheckMenuItem::with_id(app, "pin-auto", "Auto", true, false, None::<&str>)?,
         claude: CheckMenuItem::with_id(app, "pin-claude", "Claude", true, false, None::<&str>)?,
         codex: CheckMenuItem::with_id(app, "pin-codex", "Codex", true, false, None::<&str>)?,
+        gemini: CheckMenuItem::with_id(app, "pin-gemini", "Gemini", true, false, None::<&str>)?,
     };
     pins.show(settings::get(app).pinned);
     let pin_menu = Submenu::with_items(
         app,
         "Pin agent",
         true,
-        &[&pins.auto, &pins.claude, &pins.codex],
+        &[&pins.auto, &pins.claude, &pins.codex, &pins.gemini],
     )?;
 
     let open_settings = MenuItem::with_id(app, "settings", "Settings…", true, Some("cmd+,"))?;
@@ -57,7 +58,7 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
             "toggle" => bar::toggle_bar(app),
             "settings" => settings_window::open(app),
             "quit" => app.exit(0),
-            id @ ("pin-auto" | "pin-claude" | "pin-codex") => {
+            id @ ("pin-auto" | "pin-claude" | "pin-codex" | "pin-gemini") => {
                 settings::set_pinned(app, pin_for(id));
                 // macOS flips a checkmark on its own when clicked. Clicking the pin you already have changes
                 // nothing (so no event), so put the checkmarks right here too.
@@ -74,14 +75,16 @@ struct PinItems {
     auto: CheckMenuItem<Wry>,
     claude: CheckMenuItem<Wry>,
     codex: CheckMenuItem<Wry>,
+    gemini: CheckMenuItem<Wry>,
 }
 
 impl PinItems {
-    /// Checks the item for `pinned` and unchecks the other two.
+    /// Checks the item for `pinned` and unchecks the others.
     fn show(&self, pinned: Option<AgentId>) {
         let _ = self.auto.set_checked(pinned.is_none());
         let _ = self.claude.set_checked(pinned == Some(AgentId::Claude));
         let _ = self.codex.set_checked(pinned == Some(AgentId::Codex));
+        let _ = self.gemini.set_checked(pinned == Some(AgentId::Gemini));
     }
 }
 
@@ -89,6 +92,7 @@ fn pin_for(id: &str) -> Option<AgentId> {
     match id {
         "pin-claude" => Some(AgentId::Claude),
         "pin-codex" => Some(AgentId::Codex),
+        "pin-gemini" => Some(AgentId::Gemini),
         _ => None,
     }
 }
