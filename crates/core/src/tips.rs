@@ -394,7 +394,7 @@ fn quick_streak<'a>(session: &[&'a UsageEvent]) -> Option<Vec<&'a UsageEvent>> {
 
 // ---------- wording ----------
 
-fn window_name(window: &LimitWindow) -> &'static str {
+pub(crate) fn window_name(window: &LimitWindow) -> &'static str {
     match window.window_minutes {
         300 => "5h",
         1440 => "daily",
@@ -405,7 +405,7 @@ fn window_name(window: &LimitWindow) -> &'static str {
 }
 
 /// 3000 → "50m", 7800 → "2h 10m", 400000 → "4d 15h".
-fn duration(secs: i64) -> String {
+pub(crate) fn duration(secs: i64) -> String {
     let secs = secs.max(0);
     let (days, hours, minutes) = (secs / 86400, secs % 86400 / 3600, secs % 3600 / 60);
     if days > 0 {

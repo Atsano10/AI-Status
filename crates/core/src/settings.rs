@@ -151,6 +151,8 @@ pub struct Settings {
     pub gait_thresholds: GaitThresholds,
     /// Show tips in the panel (see `tips.rs`).
     pub tips: bool,
+    /// macOS notifications when a limit gets close, runs out, or resets (see `notify.rs`).
+    pub notifications: bool,
     /// Your Gemini plan (Settings ▸ Gemini).
     pub gemini_plan: GeminiPlan,
     /// The look (Settings ▸ Look).
@@ -186,6 +188,7 @@ impl Default for Settings {
             bar_display: None,
             gait_thresholds: GaitThresholds::default(),
             tips: true,
+            notifications: true,
             gemini_plan: GeminiPlan::Auto,
             palette: Palette::Classic,
             theme: Theme::Dark,
@@ -290,6 +293,7 @@ mod tests {
                 run_at: 200_000,
             },
             tips: false,
+            notifications: false,
             gemini_plan: GeminiPlan::Ultra,
             palette: Palette::Sunset,
             theme: Theme::System,

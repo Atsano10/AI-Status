@@ -6,6 +6,7 @@ pub mod adapters;
 pub mod classify;
 pub mod detect;
 pub mod model;
+pub mod notify;
 pub mod placement;
 pub mod settings;
 pub mod tail;

@@ -42,6 +42,10 @@ gaitThresholds: GaitThresholds,
  */
 tips: boolean, 
 /**
+ * macOS notifications when a limit gets close, runs out, or resets (see `notify.rs`).
+ */
+notifications: boolean, 
+/**
  * Your Gemini plan (Settings ▸ Gemini).
  */
 geminiPlan: GeminiPlan, 
