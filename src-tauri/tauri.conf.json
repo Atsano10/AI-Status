@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "statuspal",
+  "productName": "StatusPal",
   "version": "0.1.0",
   "identifier": "com.atsano10.statuspal",
   "build": {
