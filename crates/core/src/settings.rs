@@ -1,7 +1,8 @@
 //! Your StatusPal settings, saved as JSON in `~/Library/Application Support/com.atsano10.statuspal/settings.json`.
 //!
 //! ```json
-//! {"hotkey": "Control+Alt+Space", "behaviour": "fade", "peekSeconds": 4, "orientation": "horizontal", "barShows": "5h"}
+//! {"hotkey": "Control+Alt+Space", "behaviour": "fade", "peekSeconds": 4, "orientation": "horizontal", "barShows": "5h",
+//!  "pinned": null}
 //! ```
 //!
 //! Any field can be missing (it gets its default), so files from older versions still load.
@@ -11,6 +12,9 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+
+use crate::model::AgentId;
 
 /// The name of the settings file.
 pub const FILE_NAME: &str = "settings.json";
@@ -55,6 +59,8 @@ pub struct Settings {
     pub peek_seconds: u32,
     pub orientation: Orientation,
     pub bar_shows: BarShows,
+    /// The agent pinned from the tray's "Pin agent" menu. `None` is Auto (the rules in `detect.rs` decide).
+    pub pinned: Option<AgentId>,
 }
 
 impl Default for Settings {
@@ -65,7 +71,27 @@ impl Default for Settings {
             peek_seconds: 4,
             orientation: Orientation::Horizontal,
             bar_shows: BarShows::FiveHour,
+            pinned: None,
         }
+    }
+}
+
+impl Settings {
+    /// These settings with some fields replaced, e.g. `{"orientation": "vertical"}`. The windows send only
+    /// what they changed, so two windows changing different settings don't undo each other.
+    ///
+    /// A bad value (like `{"behaviour": "wobble"}`) is an error, and nothing changes.
+    pub fn with_changes(&self, changes: Value) -> Result<Settings, serde_json::Error> {
+        let Value::Object(changes) = changes else {
+            return Err(serde::de::Error::custom(
+                "settings changes must be an object",
+            ));
+        };
+        let mut merged = serde_json::to_value(self)?;
+        if let Value::Object(fields) = &mut merged {
+            fields.extend(changes);
+        }
+        serde_json::from_value(merged)
     }
 }
 
@@ -135,6 +161,7 @@ mod tests {
             peek_seconds: 7,
             orientation: Orientation::Vertical,
             bar_shows: BarShows::Week,
+            pinned: Some(AgentId::Codex),
         };
         save(&path, &settings).unwrap();
         assert_eq!(load(&path), settings);
@@ -157,6 +184,31 @@ mod tests {
         fs::create_dir_all(path.parent().unwrap()).unwrap();
         fs::write(&path, "{ not json").unwrap();
         assert_eq!(load(&path), Settings::default());
+    }
+
+    #[test]
+    fn changes_replace_only_the_fields_sent() {
+        let changed = Settings::default()
+            .with_changes(serde_json::json!({"orientation": "vertical", "pinned": "Claude"}))
+            .unwrap();
+        assert_eq!(changed.orientation, Orientation::Vertical);
+        assert_eq!(changed.pinned, Some(AgentId::Claude));
+        assert_eq!(changed.behaviour, Settings::default().behaviour);
+    }
+
+    #[test]
+    fn a_bad_change_is_an_error() {
+        let settings = Settings::default();
+        assert!(
+            settings
+                .with_changes(serde_json::json!({"behaviour": "wobble"}))
+                .is_err()
+        );
+        assert!(
+            settings
+                .with_changes(serde_json::json!("vertical"))
+                .is_err()
+        );
     }
 
     #[test]

@@ -3,6 +3,7 @@ use tauri::{Emitter, Manager};
 mod active;
 #[cfg(target_os = "macos")]
 mod bar;
+mod settings;
 #[cfg(target_os = "macos")]
 mod tray;
 
@@ -33,6 +34,9 @@ pub fn run() {
 
     builder
         .setup(|app| {
+            // First: the tray and the detector read the settings as soon as they start.
+            settings::setup(app.handle());
+
             #[cfg(target_os = "macos")]
             {
                 // A menu bar app: no Dock icon and no app menu. Set this before building the bar.
@@ -67,6 +71,8 @@ pub fn run() {
             get_limits,
             quit,
             active::get_active_agent,
+            settings::get_settings,
+            settings::update_settings,
             #[cfg(target_os = "macos")]
             bar::resize_bar,
             #[cfg(target_os = "macos")]

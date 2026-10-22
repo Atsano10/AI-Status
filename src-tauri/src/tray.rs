@@ -1,21 +1,42 @@
 //! The StatusPal logo in the menu bar. With no Dock icon and no main window, it's the only always-visible part of the app.
 
 use statuspal_core::model::AgentId;
+use tauri::AppHandle;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::tray::TrayIconBuilder;
-use tauri::{AppHandle, Manager};
 
-use crate::active::PinnedAgent;
-use crate::bar;
+use crate::{bar, settings};
 
 pub fn setup(app: &AppHandle) -> tauri::Result<()> {
     // Each item gets an id ("toggle", "quit") so the click handler can tell them apart.
     let toggle = MenuItem::with_id(app, "toggle", "Show/Hide Bar   ⌃⌥Space", true, None::<&str>)?;
 
-    // "Pin agent ▸ Auto / Claude / Codex". Exactly one has a checkmark; Auto is on at launch.
-    let auto = CheckMenuItem::with_id(app, "pin-auto", "Auto", true, true, None::<&str>)?;
-    let claude = CheckMenuItem::with_id(app, "pin-claude", "Claude", true, false, None::<&str>)?;
-    let codex = CheckMenuItem::with_id(app, "pin-codex", "Codex", true, false, None::<&str>)?;
+    // "Pin agent ▸ Auto / Claude / Codex". Exactly one has a checkmark, starting with the saved pin.
+    let pinned = settings::get(app).pinned;
+    let auto = CheckMenuItem::with_id(
+        app,
+        "pin-auto",
+        "Auto",
+        true,
+        pinned.is_none(),
+        None::<&str>,
+    )?;
+    let claude = CheckMenuItem::with_id(
+        app,
+        "pin-claude",
+        "Claude",
+        true,
+        pinned == Some(AgentId::Claude),
+        None::<&str>,
+    )?;
+    let codex = CheckMenuItem::with_id(
+        app,
+        "pin-codex",
+        "Codex",
+        true,
+        pinned == Some(AgentId::Codex),
+        None::<&str>,
+    )?;
     let pin_menu = Submenu::with_items(app, "Pin agent", true, &[&auto, &claude, &codex])?;
 
     let quit = MenuItem::with_id(app, "quit", "Quit StatusPal", true, Some("cmd+q"))?;
@@ -34,9 +55,9 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
             match id {
                 "toggle" => bar::toggle_bar(app),
                 "quit" => app.exit(0),
-                "pin-auto" => app.state::<PinnedAgent>().set(None),
-                "pin-claude" => app.state::<PinnedAgent>().set(Some(AgentId::Claude)),
-                "pin-codex" => app.state::<PinnedAgent>().set(Some(AgentId::Codex)),
+                "pin-auto" => settings::set_pinned(app, None),
+                "pin-claude" => settings::set_pinned(app, Some(AgentId::Claude)),
+                "pin-codex" => settings::set_pinned(app, Some(AgentId::Codex)),
                 _ => {}
             }
 
