@@ -77,7 +77,7 @@ You'll need [Node.js](https://nodejs.org) 22+, [Rust](https://rustup.rs), and Xc
 ```sh
 npm install
 npm run tauri dev     # run the app, rebuilding when files change
-npm run tauri build   # build StatusPal.app and a .dmg into src-tauri/target/release/bundle/
+npm run tauri build   # build StatusPal.app and a .dmg into target/release/bundle/
 ```
 
 While `tauri dev` is running, `http://localhost:1420/gallery.html` shows every bar and panel state at once.
