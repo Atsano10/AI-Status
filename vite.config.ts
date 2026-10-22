@@ -8,10 +8,14 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig(() => ({
   plugins: [react()],
 
-  // Two pages: the main window (index.html) and the floating bar (bar.html).
+  // The pages: the main window (index.html), the floating bar (bar.html) and the settings window.
   build: {
     rollupOptions: {
-      input: { main: "index.html", bar: "bar.html" },
+      input: {
+        main: "index.html",
+        bar: "bar.html",
+        settings: "settings.html",
+      },
     },
   },
 

@@ -21,6 +21,8 @@ interface PanelProps {
   paused: boolean;
   onPrefs: (change: Partial<Prefs>) => void;
   onHide: () => void;
+  /** The ☰ menu's "Settings…". Left out in the dev gallery. */
+  onSettings?: () => void;
   onQuit: () => void;
   /** Plays the exit animation before the panel is removed. */
   closing: boolean;
@@ -243,7 +245,14 @@ function NoData({ agent }: { agent: AgentId }) {
   );
 }
 
-function Menu({ snapshots, prefs, onPrefs, onHide, onQuit }: PanelProps) {
+function Menu({
+  snapshots,
+  prefs,
+  onPrefs,
+  onHide,
+  onSettings,
+  onQuit,
+}: PanelProps) {
   // Only offer 5h ↔ week when some agent actually has both windows.
   const hasTwo = snapshots.some((s) => s.windows.length > 1);
   return (
@@ -271,6 +280,9 @@ function Menu({ snapshots, prefs, onPrefs, onHide, onQuit }: PanelProps) {
       <div className="panel-divider" />
       <button className="menu-item" onClick={onHide}>
         Hide bar <span className="menu-hint">⌃⌥Space</span>
+      </button>
+      <button className="menu-item" onClick={onSettings}>
+        Settings…
       </button>
       <button className="menu-item" onClick={onQuit}>
         Quit StatusPal <span className="menu-hint">⌘Q</span>

@@ -1,6 +1,8 @@
-// Bar preferences. Kept in the webview's localStorage for now; they move to the settings file
-// (Tauri store plugin) when the settings window exists.
+// What the bar needs from your preferences. Orientation and 5h/week live in the settings file (shared with the
+// settings window, see src/settings/useSettings.ts). Pausing is a moment-to-moment state, not a setting, so
+// it stays in this webview's localStorage.
 import { useCallback, useState } from "react";
+import { updateSettings, useSettings } from "../settings/useSettings";
 import type { Orientation, PreferredWindow } from "./state";
 
 export interface Prefs {
@@ -12,33 +14,38 @@ export interface Prefs {
 }
 
 const KEY = "statuspal.bar.prefs";
-const DEFAULTS: Prefs = {
-  orientation: "horizontal",
-  barShows: "5h",
-  pausedUntil: null,
-};
 
-function load(): Prefs {
+function loadPausedUntil(): Prefs["pausedUntil"] {
   try {
-    return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) ?? "{}") };
+    return JSON.parse(localStorage.getItem(KEY) ?? "{}").pausedUntil ?? null;
   } catch {
-    return DEFAULTS;
+    return null;
   }
 }
 
-export function usePrefs(): [Prefs, (change: Partial<Prefs>) => void] {
-  const [prefs, setPrefs] = useState(load);
+/** The bar's prefs (null until the settings load) and a function that saves a change to the right place. */
+export function usePrefs(): [Prefs | null, (change: Partial<Prefs>) => void] {
+  const settings = useSettings();
+  const [pausedUntil, setPausedUntil] = useState(loadPausedUntil);
+
   const update = useCallback((change: Partial<Prefs>) => {
-    setPrefs((old) => {
-      const next = { ...old, ...change };
+    const { pausedUntil: paused, ...rest } = change;
+    if (paused !== undefined) {
+      setPausedUntil(paused);
       try {
-        localStorage.setItem(KEY, JSON.stringify(next));
+        localStorage.setItem(KEY, JSON.stringify({ pausedUntil: paused }));
       } catch {
-        // Storage can be unavailable; the change still applies until the bar reloads.
+        // Storage can be unavailable; the pause still applies until the bar reloads.
       }
-      return next;
-    });
+    }
+    if (Object.keys(rest).length > 0) void updateSettings(rest);
   }, []);
+
+  const prefs = settings && {
+    orientation: settings.orientation,
+    barShows: settings.barShows,
+    pausedUntil,
+  };
   return [prefs, update];
 }
 

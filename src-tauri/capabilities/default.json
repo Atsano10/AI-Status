@@ -1,10 +1,11 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the main window and the floating bar",
+  "description": "Capability for the main window, the floating bar and the settings window",
   "windows": [
     "main",
-    "bar"
+    "bar",
+    "settings"
   ],
   "permissions": [
     "core:default",

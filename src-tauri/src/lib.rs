@@ -4,6 +4,7 @@ mod active;
 #[cfg(target_os = "macos")]
 mod bar;
 mod settings;
+mod settings_window;
 #[cfg(target_os = "macos")]
 mod tray;
 
@@ -73,6 +74,7 @@ pub fn run() {
             active::get_active_agent,
             settings::get_settings,
             settings::update_settings,
+            settings_window::open_settings,
             #[cfg(target_os = "macos")]
             bar::resize_bar,
             #[cfg(target_os = "macos")]

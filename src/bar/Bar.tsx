@@ -18,12 +18,12 @@ export default function Bar() {
   const hovered = useTauriEvent<boolean>("bar-hover", false);
 
   // Pausing freezes the numbers where they were, so nothing moves until you resume.
-  const paused = isPaused(prefs, now);
+  const paused = prefs !== null && isPaused(prefs, now);
   const [frozen, setFrozen] = useState(snapshots);
   if (!paused && frozen !== snapshots) setFrozen(snapshots);
   const data = paused ? frozen : snapshots;
 
-  if (data === null) return null; // first load, a few ms
+  if (data === null || prefs === null) return null; // first load, a few ms
 
   return (
     <BarView
@@ -38,6 +38,7 @@ export default function Bar() {
       onResize={resizeBar}
       onDragStart={() => getCurrentWindow().startDragging()}
       onHide={() => invoke("hide_bar")}
+      onSettings={() => invoke("open_settings")}
       onQuit={() => invoke("quit")}
     />
   );
@@ -67,6 +68,7 @@ interface BarViewProps {
   onResize?: (width: number, height: number) => void;
   onDragStart?: () => void;
   onHide?: () => void;
+  onSettings?: () => void;
   onQuit?: () => void;
 }
 
@@ -161,6 +163,7 @@ export function BarView(props: BarViewProps) {
           paused={paused}
           onPrefs={onPrefs}
           onHide={() => props.onHide?.()}
+          onSettings={props.onSettings}
           onQuit={() => props.onQuit?.()}
           closing={panel.closing}
         />

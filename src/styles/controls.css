@@ -1,0 +1,21 @@
+/* Controls shared by the bar's panel and the settings window. */
+
+/* A row of buttons where one is chosen, like macOS's segmented control. */
+.segmented {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--surface-track);
+}
+.segmented button {
+  flex: 1;
+  padding: 5px 6px;
+  border-radius: 6px;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+.segmented button.is-active {
+  background: var(--surface-hairline);
+  color: var(--text-primary);
+}

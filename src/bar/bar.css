@@ -1,4 +1,5 @@
 @import "../styles/tokens.css";
+@import "../styles/controls.css";
 @import "./critter.css";
 
 html,
@@ -412,25 +413,6 @@ button {
 .pause-options-title {
   font-size: var(--text-sm);
   color: var(--text-tertiary);
-}
-
-.segmented {
-  display: flex;
-  gap: 2px;
-  padding: 2px;
-  border-radius: 8px;
-  background: var(--surface-track);
-}
-.segmented button {
-  flex: 1;
-  padding: 5px 6px;
-  border-radius: 6px;
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-}
-.segmented button.is-active {
-  background: var(--surface-hairline);
-  color: var(--text-primary);
 }
 
 .menu {
