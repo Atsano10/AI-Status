@@ -74,6 +74,13 @@ button {
   align-items: stretch;
   gap: 10px;
 }
+/* Under the text there's room to spare, so the choices share the whole width evenly. */
+.settings-row--stacked .settings-choice {
+  flex: 1;
+}
+.settings-row--stacked .settings-choice button {
+  flex: 1;
+}
 .settings-row-text {
   display: flex;
   flex: 1;
