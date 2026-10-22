@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Panel from "./Panel";
 import Pill from "./Pill";
 import { isPaused, usePrefs, type Prefs } from "./prefs";
-import { critterMood, derivePill, lastActivity } from "./state";
+import { critterMood, derivePill, isAlert } from "./state";
 import type { AgentId, UsageSnapshot } from "./types";
 
 /** The real bar: live data from Rust drawn by BarView. */
@@ -111,13 +111,15 @@ export function BarView(props: BarViewProps) {
     ? (snapshots.find((s) => s.agent === agent) ?? null)
     : null;
   const view = derivePill(snapshot, agent, prefs.barShows, paused, now);
-  const mood = critterMood(view, lastActivity(snapshot), now);
+  // Paused tracking means a still, sleeping critter, whatever the agent is doing.
+  const gait = paused ? "sleeping" : (snapshot?.activity.gait ?? "sleeping");
+  const mood = critterMood(view, gait);
 
   // Left alone (panel closed, mouse elsewhere), Fade fades the bar and Peek hides it. Toggle does neither.
   const behaviour = prefs.behaviour ?? "fade";
   const idle = useIdle(
     open || (hovered ?? domHover),
-    `${agent}|${mood}`,
+    `${agent}|${isAlert(mood) ? mood : "calm"}`,
     behaviour === "peek"
       ? (prefs.peekSeconds ?? PEEK_SECONDS) * 1000
       : FADE_AFTER,
@@ -161,6 +163,7 @@ export function BarView(props: BarViewProps) {
         orientation={prefs.orientation}
         agent={agent}
         mood={mood}
+        gait={gait}
         onMouseDown={(e) => {
           if (e.button === 0)
             pressPill(e.nativeEvent, {

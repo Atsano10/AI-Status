@@ -1,4 +1,5 @@
 // Turns the raw snapshots from Rust into what the pill and panel draw. No React here, so it's easy to test.
+import type { Gait } from "../bindings/Gait";
 import type { AgentId, LimitWindow, UsageSnapshot } from "./types";
 
 export type Orientation = "horizontal" | "vertical";
@@ -7,11 +8,14 @@ export type Level = "normal" | "close" | "out";
 export type PreferredWindow = "5h" | "week";
 
 /** How the critter acts. See critter.css for what each one looks like. */
+/** Moods that are worth waking a faded bar for: a change in how close you are to the limit. Working and
+ * sleeping come and go with every reply, so they don't count. */
+export function isAlert(mood: Mood): boolean {
+  return mood === "nervous" || mood === "alarm" || mood === "cheer";
+}
+
 export type Mood =
   "idle" | "working" | "nervous" | "alarm" | "cheer" | "sleep" | "confused";
-
-/** How recently an agent must have written usage data for its critter to look busy. */
-export const WORKING_SECS = 90;
 
 /** What the pill shows. One case per state in the Figma "Pill" component. */
 export type PillView =
@@ -156,18 +160,11 @@ export function updatedText(observedAt: number, now: number): string {
   return secs < 60 ? "updated just now" : `updated ${until(secs)} ago`;
 }
 
-/** When the agent last wrote usage data, from the newest reading in its snapshot. */
-export function lastActivity(snapshot: UsageSnapshot | null): number | null {
-  if (!snapshot || snapshot.windows.length === 0) return null;
-  return Math.max(...snapshot.windows.map((w) => w.observed_at));
-}
-
-/** The critter's mood for what the pill shows. */
-export function critterMood(
-  view: PillView,
-  lastActive: number | null,
-  now: number,
-): Mood {
+/**
+ * The critter's mood (its face and extras) for what the pill shows. `gait` is how hard the agent is working
+ * (crates/core/src/activity.rs): a resting agent's critter sleeps, a busy one looks busy.
+ */
+export function critterMood(view: PillView, gait: Gait): Mood {
   switch (view.kind) {
     case "limit-hit":
       return "alarm";
@@ -180,8 +177,6 @@ export function critterMood(
       return "confused";
     case "usage":
       if (view.level !== "normal") return "nervous";
-      return lastActive !== null && now - lastActive < WORKING_SECS
-        ? "working"
-        : "idle";
+      return gait === "sleeping" ? "sleep" : "working";
   }
 }

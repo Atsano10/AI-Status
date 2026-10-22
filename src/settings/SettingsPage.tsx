@@ -74,6 +74,24 @@ export default function SettingsPage() {
         </Row>
       </Section>
 
+      <Section title="Critter">
+        <Row label="Gets moving" hint={energyHint(settings.gaitThresholds)}>
+          <Choice<Energy>
+            value={energyOf(settings.gaitThresholds)}
+            options={[
+              ["easily", "Easily"],
+              ["normal", "Normal"],
+              ["rarely", "Rarely"],
+            ]}
+            onChange={(e) =>
+              updateSettings({
+                gaitThresholds: ENERGY[e as Exclude<Energy, "custom">],
+              })
+            }
+          />
+        </Row>
+      </Section>
+
       <Section title="Agent">
         <Row
           label="Pin agent"
@@ -102,6 +120,31 @@ export default function SettingsPage() {
       </Section>
     </main>
   );
+}
+
+/**
+ * How easily the critter starts jogging and running: where its gait thresholds sit, in effective tokens per
+ * 10 minutes (crates/core/src/activity.rs). Normal comes from your own usage: 150k is your quieter quarter,
+ * 500k your busiest.
+ */
+type Energy = "easily" | "normal" | "rarely" | "custom";
+const ENERGY: Record<Exclude<Energy, "custom">, Settings["gaitThresholds"]> = {
+  easily: { jogAt: 50_000, runAt: 200_000 },
+  normal: { jogAt: 150_000, runAt: 500_000 },
+  rarely: { jogAt: 300_000, runAt: 1_000_000 },
+};
+
+function energyOf(t: Settings["gaitThresholds"]): Energy {
+  const match = Object.entries(ENERGY).find(
+    ([, preset]) => preset.jogAt === t.jogAt && preset.runAt === t.runAt,
+  );
+  return (match?.[0] as Energy | undefined) ?? "custom";
+}
+
+function energyHint(t: Settings["gaitThresholds"]): string {
+  const k = (n: number) =>
+    n >= 1_000_000 ? `${n / 1_000_000}M` : `${n / 1000}k`;
+  return `Jogs from ${k(t.jogAt)} tokens in 10 minutes, runs from ${k(t.runAt)}.`;
 }
 
 function behaviourHint(settings: Settings): string {

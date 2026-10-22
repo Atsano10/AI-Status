@@ -1,4 +1,5 @@
 import type { CSSProperties, MouseEventHandler } from "react";
+import type { Gait } from "../bindings/Gait";
 import Critter from "./Critter";
 import { until, type Mood, type Orientation, type PillView } from "./state";
 import type { AgentId } from "./types";
@@ -9,6 +10,8 @@ interface PillProps {
   /** Whose critter to draw. `null` shows the paw placeholder. */
   agent: AgentId | null;
   mood: Mood;
+  /** How fast the critter's legs go. */
+  gait: Gait;
   /** Mouse down on the pill: a click toggles the panel, a press-and-move drags the window (see Bar.tsx). */
   onMouseDown?: MouseEventHandler;
 }
@@ -19,6 +22,7 @@ export default function Pill({
   orientation,
   agent,
   mood,
+  gait,
   onMouseDown,
 }: PillProps) {
   const vertical = orientation === "vertical";
@@ -37,7 +41,11 @@ export default function Pill({
       onMouseDown={onMouseDown}
     >
       <span className="critter-slot" aria-hidden>
-        {agent ? <Critter agent={agent} mood={mood} /> : <PawIcon />}
+        {agent ? (
+          <Critter agent={agent} mood={mood} gait={gait} />
+        ) : (
+          <PawIcon />
+        )}
       </span>
       <span className="track" aria-hidden>
         <span className="fill" />

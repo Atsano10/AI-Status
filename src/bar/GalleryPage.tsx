@@ -1,17 +1,12 @@
 // Dev-only page that draws every bar state with sample data (entry: gallery-main.tsx).
 import { useEffect, useState } from "react";
+import type { Gait } from "../bindings/Gait";
 import { BarView } from "./Bar";
 import Panel from "./Panel";
 import Pill from "./Pill";
 import type { Prefs } from "./prefs";
 import Critter from "./Critter";
-import {
-  critterMood,
-  derivePill,
-  lastActivity,
-  type Mood,
-  type Orientation,
-} from "./state";
+import { critterMood, derivePill, type Mood, type Orientation } from "./state";
 import type { AgentId, LimitWindow, UsageSnapshot } from "./types";
 
 const NOW = Math.floor(Date.now() / 1000);
@@ -124,6 +119,18 @@ const SAMPLES: Sample[] = [
   },
 ];
 
+/** The sample's gait, like the real bar: paused or no data means a still critter. */
+function gait(
+  snap: UsageSnapshot | null,
+  pausedUntil: Prefs["pausedUntil"],
+): Gait {
+  return pausedUntil !== null
+    ? "sleeping"
+    : (snap?.activity.gait ?? "sleeping");
+}
+
+const GAITS: Gait[] = ["sleeping", "walking", "jogging", "running"];
+
 const MOODS: Mood[] = [
   "idle",
   "working",
@@ -169,7 +176,8 @@ export default function GalleryPage() {
                       view={view}
                       orientation={o}
                       agent={s.agent}
-                      mood={critterMood(view, lastActivity(snap), NOW)}
+                      mood={critterMood(view, gait(snap, p.pausedUntil))}
+                      gait={gait(snap, p.pausedUntil)}
                     />
                     {o === "horizontal" && (
                       <figcaption>
@@ -191,9 +199,39 @@ export default function GalleryPage() {
             <div key={agent} className="gallery-row">
               {MOODS.map((mood) => (
                 <figure key={mood} className="gallery-critter">
-                  <Critter agent={agent} mood={mood} />
+                  <Critter
+                    agent={agent}
+                    mood={mood}
+                    gait={mood === "working" ? "walking" : "sleeping"}
+                  />
                   <figcaption>
                     <b>{mood}</b> {agent}
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h2>Gaits</h2>
+        <p className="gallery-sub">
+          How fast the legs go, from the tokens in the last 10 minutes. Any mood
+          can walk, jog or run.
+        </p>
+        <div className="gallery-critters">
+          {(["Claude", "Codex"] as const).map((agent) => (
+            <div key={agent} className="gallery-row">
+              {GAITS.map((g) => (
+                <figure key={g} className="gallery-critter">
+                  <Critter
+                    agent={agent}
+                    mood={g === "sleeping" ? "sleep" : "working"}
+                    gait={g}
+                  />
+                  <figcaption>
+                    <b>{g}</b> {agent}
                   </figcaption>
                 </figure>
               ))}

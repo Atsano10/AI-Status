@@ -2,6 +2,7 @@
 // Each sprite is an 18×18 grid of letters. Every letter is a colour and a body part, so CSS can animate
 // the parts separately (blink the eyes, walk the legs, wave the arms). Moods live in critter.css.
 import type { ReactElement } from "react";
+import type { Gait } from "../bindings/Gait";
 import type { Mood } from "./state";
 import type { AgentId } from "./types";
 
@@ -139,7 +140,7 @@ const SPRITES: Record<AgentId, ReactElement[]> = {
   Codex: drawGrid(CODEX_GRID, CODEX_INK),
 };
 
-/** The little extras that float next to the head: "!", "?", "z", sparkles, a sweat drop. */
+/** The little extras that float next to the head: "!", "?", "z", sparkles, a sweat drop, speed lines. */
 function Extras() {
   return (
     <>
@@ -166,6 +167,11 @@ function Extras() {
         <rect className="spark-2" x={-2} y={4} width={1} height={1} />
         <rect className="spark-2" x={21} y={6} width={1} height={1} />
       </g>
+      <g className="x-speed" fill="#62626b">
+        <rect x={-2} y={6} width={2} height={1} />
+        <rect x={-2} y={9} width={1} height={1} />
+        <rect x={-2} y={12} width={2} height={1} />
+      </g>
       <g className="x-nervous" fill="#7fd0ff">
         <rect x={18} y={3} width={1} height={2} />
       </g>
@@ -176,18 +182,24 @@ function Extras() {
 interface CritterProps {
   agent: AgentId;
   mood: Mood;
+  /** How fast the legs go. Sleeping (still) when left out. */
+  gait?: Gait;
 }
 
 /** An agent's critter, animated for its mood. 48×40 px: the sprite, plus room for extras on the right. */
-export default function Critter({ agent, mood }: CritterProps) {
+export default function Critter({
+  agent,
+  mood,
+  gait = "sleeping",
+}: CritterProps) {
   return (
     <svg
-      className={`critter critter--${agent.toLowerCase()} mood-${mood}`}
+      className={`critter critter--${agent.toLowerCase()} mood-${mood} gait-${gait}`}
       width="48"
       height="40"
       viewBox="-2 -1 24 20"
       shapeRendering="crispEdges"
-      aria-label={`${agent}, ${mood}`}
+      aria-label={`${agent}, ${mood}, ${gait}`}
     >
       <g className="c-sprite">
         {SPRITES[agent]}

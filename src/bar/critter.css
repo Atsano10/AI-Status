@@ -3,11 +3,11 @@
  * critters stay crisp pixel art instead of sliding smoothly.
  *
  *   idle      breathe + blink                 usage < 75%, nothing written lately
- *   working   walk (Claude), >_ face (Codex)   the agent wrote usage data in the last 90s
+ *   working   >_ face (Codex)                  replying lately (the gait, below, moves the legs)
  *   nervous   fast breathing + sweat drop      75–99%
  *   alarm     shake, then a flashing "!"       limit hit
  *   cheer     jump, arms up, sparkles          the window just reset
- *   sleep     eyes shut, floating "z"          paused
+ *   sleep     eyes shut, floating "z"          paused, or no reply for 5 minutes
  *   confused  looks around under a "?"         no data yet (bridge not set up)
  */
 
@@ -31,22 +31,42 @@
   animation: c-blink 4.2s steps(1) infinite;
 }
 
+/*
+ * ---------- gait: how fast the legs go, on top of any mood ----------
+ * From the tokens in the last 10 minutes (crates/core/src/activity.rs). Before the moods, so a mood that
+ * moves the whole body (alarm shakes, cheer jumps) still wins for the body.
+ *
+ *   sleeping  legs still (the mood shows the "z")    no reply for 5 minutes
+ *   walking   a step every 0.6s                       < 150k tokens
+ *   jogging   every 0.36s, the body bobs along        150k – 500k
+ *   running   every 0.2s, plus speed lines behind     > 500k
+ */
+.gait-walking {
+  --stride: 0.6s;
+}
+.gait-jogging {
+  --stride: 0.36s;
+}
+.gait-running {
+  --stride: 0.2s;
+}
+.critter:not(.gait-sleeping) .c-legs-a,
+.critter--claude:not(.gait-sleeping) .c-arm-r {
+  animation: c-step var(--stride) steps(1) infinite;
+}
+.critter:not(.gait-sleeping) .c-legs-b,
+.critter--claude:not(.gait-sleeping) .c-arm-l {
+  animation: c-step var(--stride) steps(1) infinite calc(var(--stride) / 2);
+}
+.gait-jogging .c-sprite,
+.gait-running .c-sprite {
+  animation-duration: var(--stride);
+}
+.gait-running .x-speed {
+  animation: c-flash calc(var(--stride) * 2) steps(1) infinite;
+}
+
 /* ---------- working ---------- */
-.mood-working .c-sprite {
-  animation-duration: 0.5s;
-}
-.mood-working .c-legs-a {
-  animation: c-step 0.5s steps(1) infinite;
-}
-.mood-working .c-legs-b {
-  animation: c-step 0.5s steps(1) infinite 0.25s;
-}
-.critter--claude.mood-working .c-arm-l {
-  animation: c-step 0.5s steps(1) infinite 0.25s;
-}
-.critter--claude.mood-working .c-arm-r {
-  animation: c-step 0.5s steps(1) infinite;
-}
 .critter--codex.mood-working .c-eyes {
   display: none;
 }
