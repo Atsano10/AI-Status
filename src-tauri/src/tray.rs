@@ -9,8 +9,10 @@ use tauri::{AppHandle, Listener, Wry};
 use crate::{bar, settings, settings_window};
 
 pub fn setup(app: &AppHandle) -> tauri::Result<()> {
-    // Each item gets an id ("toggle", "quit") so the click handler can tell them apart.
-    let toggle = MenuItem::with_id(app, "toggle", "Show/Hide Bar   ⌃⌥Space", true, None::<&str>)?;
+    // Each item gets an id ("toggle", "quit") so the click handler can tell them apart. The hotkey shows on the
+    // right of "Show/Hide Bar", the way macOS menus show shortcuts.
+    let hotkey = settings::get(app).hotkey;
+    let toggle = MenuItem::with_id(app, "toggle", "Show/Hide Bar", true, Some(hotkey.as_str()))?;
 
     // "Pin agent ▸ Auto / Claude / Codex". Exactly one has a checkmark.
     let pins = PinItems {
@@ -34,11 +36,13 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
         &[&toggle, &pin_menu, &separator, &open_settings, &quit],
     )?;
 
-    // The settings window can change the pin too, so follow every change, not just our own clicks.
+    // The settings window can change the pin and the hotkey, so follow every change, not just our own clicks.
     let followed = pins.clone();
+    let toggle_item = toggle.clone();
     app.listen_any("settings-changed", move |event| {
         if let Ok(new) = serde_json::from_str::<Settings>(event.payload()) {
             followed.show(new.pinned);
+            let _ = toggle_item.set_accelerator(Some(new.hotkey.as_str()));
         }
     });
 

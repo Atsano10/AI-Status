@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Orientation, PreferredWindow } from "../bar/state";
 import type { AgentId } from "../bar/types";
+import ShortcutRecorder from "./ShortcutRecorder";
 import { updateSettings, useSettings } from "./useSettings";
 
 /** The settings window (src-tauri/src/settings_window.rs). Every change saves straight away. */
@@ -10,6 +11,12 @@ export default function SettingsPage() {
 
   return (
     <main className="settings">
+      <Section title="Hotkey">
+        <Row label="Show/hide bar" hint="Click, then press the keys you want.">
+          <ShortcutRecorder hotkey={settings.hotkey} />
+        </Row>
+      </Section>
+
       <Section title="Bar">
         <Row label="Orientation">
           <Choice<Orientation>

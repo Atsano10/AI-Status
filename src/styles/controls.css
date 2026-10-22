@@ -14,6 +14,18 @@
   border-radius: 6px;
   font-size: var(--text-sm);
   color: var(--text-secondary);
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+/* `.is-hover` is the floating bar's stand-in for :hover (usePointerHover in Bar.tsx). */
+.segmented button:not(.is-active):hover,
+.segmented button:not(.is-active).is-hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+.segmented button:not(.is-active):active {
+  background: var(--surface-press);
 }
 .segmented button.is-active {
   background: var(--surface-hairline);

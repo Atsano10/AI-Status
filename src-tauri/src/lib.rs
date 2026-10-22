@@ -3,6 +3,8 @@ use tauri::{Emitter, Manager};
 mod active;
 #[cfg(target_os = "macos")]
 mod bar;
+#[cfg(target_os = "macos")]
+mod hotkey;
 mod settings;
 mod settings_window;
 #[cfg(target_os = "macos")]
@@ -43,6 +45,7 @@ pub fn run() {
                 // A menu bar app: no Dock icon and no app menu. Set this before building the bar.
                 app.set_activation_policy(tauri::ActivationPolicy::Accessory);
                 bar::setup(app.handle())?;
+                hotkey::setup(app.handle())?;
                 tray::setup(app.handle())?;
             }
 
@@ -80,7 +83,11 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             bar::hide_bar,
             #[cfg(target_os = "macos")]
-            bar::set_click_through
+            bar::set_click_through,
+            #[cfg(target_os = "macos")]
+            hotkey::set_hotkey,
+            #[cfg(target_os = "macos")]
+            hotkey::pause_hotkey
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

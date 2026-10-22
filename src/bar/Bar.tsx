@@ -16,6 +16,7 @@ export default function Bar() {
   const [prefs, setPrefs] = usePrefs();
   const shown = useShowCount();
   const hovered = useTauriEvent<boolean>("bar-hover", false);
+  usePointerHover();
 
   // Pausing freezes the numbers where they were, so nothing moves until you resume.
   const paused = prefs !== null && isPaused(prefs, now);
@@ -221,6 +222,30 @@ function useTauriEvent<T>(name: string, initial: T): T {
     };
   }, [name]);
   return value;
+}
+
+/**
+ * Hover highlights for the real bar. The page gets no mouse moves of its own (StatusPal is never the active
+ * app), so CSS `:hover` never fires. Rust sends the mouse position instead (`bar-pointer`, src-tauri/src/bar.rs)
+ * and we put `is-hover` on the button under it, which the CSS styles the same as `:hover`.
+ */
+function usePointerHover() {
+  useEffect(() => {
+    let current: Element | null = null;
+    const unlisten = listen<[number, number] | null>("bar-pointer", (e) => {
+      const next = e.payload
+        ? (document.elementFromPoint(...e.payload)?.closest("button") ?? null)
+        : null;
+      if (next !== current) current?.classList.remove("is-hover");
+      // Added every time, since React may have rewritten the button's classes since the last move.
+      next?.classList.add("is-hover");
+      current = next;
+    });
+    return () => {
+      unlisten.then((stop) => stop());
+      current?.classList.remove("is-hover");
+    };
+  }, []);
 }
 
 /**

@@ -14,7 +14,7 @@ pub fn open(app: &AppHandle) {
 
     let built = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App("settings.html".into()))
         .title("StatusPal Settings")
-        .inner_size(480.0, 300.0)
+        .inner_size(480.0, 384.0)
         .resizable(false)
         .maximizable(false)
         .minimizable(false)

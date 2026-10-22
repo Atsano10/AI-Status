@@ -84,3 +84,64 @@ button {
   padding: 4px 10px;
   white-space: nowrap;
 }
+
+/* ---------- Shortcut recorder ---------- */
+
+.recorder {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.recorder-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+.recorder-key {
+  min-width: 110px;
+  padding: 5px 12px;
+  border: 1px solid var(--surface-hairline);
+  border-radius: 8px;
+  background: var(--surface-track);
+  font: 600 var(--text-md) var(--font-num);
+  letter-spacing: 0.04em;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+.recorder-key:hover {
+  background: var(--surface-hairline);
+}
+.recorder-key.is-recording {
+  border-color: var(--level-normal);
+  color: var(--text-secondary);
+  font-weight: 500;
+  letter-spacing: normal;
+  animation: recorder-pulse 1.2s ease-in-out infinite;
+}
+.recorder-reset {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.recorder-reset:hover {
+  color: var(--text-primary);
+}
+.recorder-error {
+  max-width: 230px;
+  font-size: var(--text-xs);
+  color: var(--level-out);
+  text-align: right;
+}
+
+@keyframes recorder-pulse {
+  50% {
+    border-color: transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .recorder-key.is-recording {
+    animation: none;
+  }
+}

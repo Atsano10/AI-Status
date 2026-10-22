@@ -9,6 +9,9 @@
   --surface-panel: #17171b;
   --surface-track: #2a2a31;
   --surface-hairline: #34343c;
+  /* Laid over a control while the mouse is over it / while it's pressed */
+  --surface-hover: rgba(245, 245, 247, 0.06);
+  --surface-press: rgba(245, 245, 247, 0.12);
   /* 1px outline so the pill reads on dark wallpapers */
   --surface-edge: rgba(245, 245, 247, 0.08);
 

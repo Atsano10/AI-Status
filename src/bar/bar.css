@@ -391,6 +391,17 @@ button {
   font-size: var(--text-sm);
   font-weight: 500;
   color: var(--text-secondary);
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+.btn:hover,
+.btn.is-hover {
+  background: var(--surface-hairline);
+  color: var(--text-primary);
+}
+.btn:active {
+  background: var(--surface-press);
 }
 .btn--icon {
   padding: 5px 6px;
@@ -438,8 +449,12 @@ button {
   font-size: var(--text-md);
   text-align: left;
 }
-.menu-item:hover {
+.menu-item:hover,
+.menu-item.is-hover {
   background: var(--surface-track);
+}
+.menu-item:active {
+  background: var(--surface-hairline);
 }
 .menu-hint {
   font-size: var(--text-sm);

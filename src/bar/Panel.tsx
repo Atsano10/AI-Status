@@ -1,4 +1,5 @@
 import { useState, type CSSProperties } from "react";
+import { DEFAULT_HOTKEY, formatHotkey } from "../settings/hotkey";
 import { PauseIcon } from "./Pill";
 import { tomorrowMorning, type Prefs } from "./prefs";
 import {
@@ -279,7 +280,10 @@ function Menu({
       )}
       <div className="panel-divider" />
       <button className="menu-item" onClick={onHide}>
-        Hide bar <span className="menu-hint">⌃⌥Space</span>
+        Hide bar{" "}
+        <span className="menu-hint">
+          {formatHotkey(prefs.hotkey ?? DEFAULT_HOTKEY)}
+        </span>
       </button>
       <button className="menu-item" onClick={onSettings}>
         Settings…

@@ -40,6 +40,18 @@ pub fn set_pinned(app: &AppHandle, pinned: Option<AgentId>) {
     });
 }
 
+/// Saves a new hotkey. Only `hotkey::set_hotkey` calls this, after the shortcut registered fine.
+#[cfg(target_os = "macos")]
+pub fn set_hotkey(app: &AppHandle, hotkey: String) -> Settings {
+    replace(app, |old| {
+        Ok(Settings {
+            hotkey,
+            ..old.clone()
+        })
+    })
+    .unwrap_or_else(|_| get(app))
+}
+
 /// Works out new settings from the current ones, saves them, and tells every window. Returns the new
 /// settings, or the error from `change` (nothing is saved then).
 fn replace(
@@ -74,6 +86,10 @@ pub fn get_settings(app: AppHandle) -> Settings {
 /// The windows send only what they changed, e.g. `invoke("update_settings", {changes: {orientation: "vertical"}})`.
 #[tauri::command]
 pub fn update_settings(app: AppHandle, changes: Value) -> Result<Settings, String> {
+    // A new hotkey has to be registered before it's saved, so it goes through `set_hotkey` instead.
+    if changes.get("hotkey").is_some() {
+        return Err("change the hotkey with set_hotkey".into());
+    }
     replace(&app, |old| {
         old.with_changes(changes).map_err(|e| e.to_string())
     })

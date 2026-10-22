@@ -1,5 +1,6 @@
-//! The floating bar: a panel that never steals focus, toggled by a global hotkey.
+//! The floating bar: a panel that never steals focus, toggled by a global hotkey (hotkey.rs).
 
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::Duration;
@@ -8,7 +9,6 @@ use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, WebviewUrl};
 use tauri_nspanel::{
     CollectionBehavior, ManagerExt, PanelBuilder, PanelLevel, StyleMask, tauri_panel,
 };
-use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
 const BAR_LABEL: &str = "bar";
 
@@ -18,11 +18,15 @@ const START_HEIGHT: f64 = 54.0;
 
 /// How often we check whether the mouse is over the bar while it's showing.
 const HOVER_POLL: Duration = Duration::from_millis(100);
+/// Quicker while the mouse is over the bar, so the page's hover highlights keep up with it.
+const POINTER_POLL: Duration = Duration::from_millis(30);
 
 /// Whether the bar is showing. The hover thread does nothing while it's hidden.
 static VISIBLE: AtomicBool = AtomicBool::new(false);
 /// Whether the mouse was over the bar on the last check, so we only emit when it changes.
 static HOVERED: AtomicBool = AtomicBool::new(false);
+/// Where the mouse was on the last check (page pixels from the top-left), `None` when outside.
+static POINTER: Mutex<Option<(f64, f64)>> = Mutex::new(None);
 
 // An NSPanel class that can't become the key window, so typing stays in whatever app you're using.
 tauri_panel! {
@@ -37,24 +41,6 @@ tauri_panel! {
 pub fn setup(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     create_bar(app)?;
     watch_hover(app.clone());
-
-    // ⌃⌥Space, the candidate macOS default from the plan.
-    let hotkey = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::ALT), Code::Space);
-    app.plugin(
-        tauri_plugin_global_shortcut::Builder::new()
-            .with_handler(move |app, shortcut, event| {
-                if shortcut == &hotkey && event.state() == ShortcutState::Pressed {
-                    toggle_bar(app);
-                }
-            })
-            .build(),
-    )?;
-
-    // Registration fails if another app already owns the combo. Report it instead of crashing.
-    match app.global_shortcut().register(hotkey) {
-        Ok(()) => println!("hotkey ⌃⌥Space registered"),
-        Err(e) => eprintln!("hotkey ⌃⌥Space is taken: {e}"),
-    }
     Ok(())
 }
 
@@ -171,15 +157,19 @@ pub fn set_click_through(app: AppHandle, enabled: bool) {
     }
 }
 
-/// The webview gets no mouse-move events while the bar isn't the key window, and it never is. So while the bar
-/// is showing, we check the mouse position ourselves and tell the page with `bar-hover`. This keeps working
-/// while the bar is click-through, which is how hovering wakes a faded bar.
+/// The webview gets no mouse-move events while StatusPal isn't the active app, and it never is (the bar doesn't
+/// take focus). So while the bar is showing, we check the mouse position ourselves and tell the page:
+/// - `bar-hover` (true/false) when the mouse goes over the bar or leaves it. This keeps working while the bar
+///   is click-through, which is how hovering wakes a faded bar.
+/// - `bar-pointer` (`[x, y]` or null) as it moves, so the page can highlight the button under it.
 fn watch_hover(app: AppHandle) {
     thread::spawn(move || {
         loop {
-            thread::sleep(HOVER_POLL);
+            let over = HOVERED.load(Ordering::Relaxed);
+            thread::sleep(if over { POINTER_POLL } else { HOVER_POLL });
             if !VISIBLE.load(Ordering::Relaxed) {
                 HOVERED.store(false, Ordering::Relaxed);
+                *POINTER.lock().unwrap() = None;
                 continue;
             }
             // AppKit calls must run on the main thread.
@@ -197,6 +187,17 @@ fn watch_hover(app: AppHandle) {
                     && mouse.y <= frame.origin.y + frame.size.height;
                 if HOVERED.swap(inside, Ordering::Relaxed) != inside {
                     let _ = handle.emit_to(BAR_LABEL, "bar-hover", inside);
+                }
+
+                // The page measures from the top-left, AppKit from the bottom-left.
+                let pointer = inside.then_some((
+                    mouse.x - frame.origin.x,
+                    frame.origin.y + frame.size.height - mouse.y,
+                ));
+                let mut last = POINTER.lock().unwrap();
+                if *last != pointer {
+                    *last = pointer;
+                    let _ = handle.emit_to(BAR_LABEL, "bar-pointer", pointer);
                 }
             });
         }

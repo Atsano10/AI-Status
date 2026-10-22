@@ -9,6 +9,8 @@ export interface Prefs {
   orientation: Orientation;
   /** Which window the pill shows when an agent has two. */
   barShows: PreferredWindow;
+  /** The show/hide hotkey, e.g. "Control+Alt+Space". Changed only in the settings window. */
+  hotkey?: string;
   /** Unix seconds when tracking resumes, `"manual"` for "until I resume", or null when not paused. */
   pausedUntil: number | "manual" | null;
 }
@@ -44,6 +46,7 @@ export function usePrefs(): [Prefs | null, (change: Partial<Prefs>) => void] {
   const prefs = settings && {
     orientation: settings.orientation,
     barShows: settings.barShows,
+    hotkey: settings.hotkey,
     pausedUntil,
   };
   return [prefs, update];
