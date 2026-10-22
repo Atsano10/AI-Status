@@ -1,0 +1,41 @@
+name: Release
+
+# Push a version tag to build StatusPal and make a draft GitHub Release with the .dmg attached:
+#   git tag v0.1.0 && git push origin v0.1.0
+# The tag should match "version" in src-tauri/tauri.conf.json. Check the draft, then publish it on GitHub.
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  release:
+    runs-on: macos-latest
+    permissions:
+      contents: write # to create the release and upload the .dmg
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      # Both Mac chips, so one universal app runs on Apple Silicon and Intel.
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin, x86_64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Not signed with an Apple developer account yet (see the README's Install steps). To sign and
+          # notarize later, add these as repository secrets: APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD,
+          # APPLE_SIGNING_IDENTITY, APPLE_ID, APPLE_PASSWORD, APPLE_TEAM_ID.
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: StatusPal ${{ github.ref_name }}
+          releaseBody: Download the .dmg below. See the README for how to open it the first time.
+          releaseDraft: true
+          args: --target universal-apple-darwin

@@ -35,7 +35,7 @@ tracked. Use on the same account still shows up the next time one of the tools a
 
 ## Install
 
-1. Download the latest `StatusPal.dmg` from the [Releases page](https://github.com/Atsano10/AI-Status/releases).
+1. Download the `.dmg` from the latest release on the [Releases page](https://github.com/Atsano10/AI-Status/releases).
 2. Open it and drag **StatusPal** into **Applications**.
 3. Open StatusPal. macOS will say it can't check the app for malware, because it isn't signed with a paid
    Apple developer account. To open it anyway:
