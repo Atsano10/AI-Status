@@ -31,4 +31,12 @@ barDisplay: string | null,
 /**
  * Where the critter starts jogging and running (effective tokens per 10 minutes).
  */
-gaitThresholds: GaitThresholds, };
+gaitThresholds: GaitThresholds, 
+/**
+ * Show tips in the panel (see `tips.rs`).
+ */
+tips: boolean, 
+/**
+ * Tips you hid, by rule id, until when (Unix seconds). "Never" is far in the future.
+ */
+hiddenTips: { [rule in string]?: number }, };

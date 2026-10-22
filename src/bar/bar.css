@@ -106,6 +106,7 @@ button {
 }
 
 .critter-slot {
+  position: relative;
   display: grid;
   place-items: center;
   width: var(--critter-width);
@@ -254,6 +255,19 @@ button {
 .pill.is-no-agent .critter-slot,
 .pill.is-paused .critter-slot {
   opacity: 0.5;
+}
+
+/* A tip is waiting in the panel. */
+.tip-dot {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 4px;
+  height: 4px;
+  background: var(--level-normal);
+}
+.tip-dot--warning {
+  background: var(--level-out);
 }
 
 /* ---------- Panel (hover view) ---------- */
@@ -416,6 +430,71 @@ div.panel-note {
 }
 div.panel-note p {
   margin: 0;
+}
+
+/* ---------- Tip ---------- */
+
+.tip {
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface-track);
+  clip-path: var(--shape-panel);
+}
+.tip-icon {
+  flex: none;
+  margin-top: 1px;
+  fill: var(--level-normal);
+}
+.tip--warning .tip-icon {
+  fill: var(--level-out);
+}
+.tip--info .tip-icon {
+  fill: var(--agent-codex);
+}
+.tip-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.tip-text {
+  margin: 0;
+  font-size: var(--text-md);
+  line-height: 1.35;
+  white-space: normal;
+}
+.tip-why {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+.tip-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-top: 5px;
+}
+.tip .btn {
+  background: var(--surface-hairline);
+  color: var(--text-primary);
+}
+.tip .btn:hover,
+.tip .btn.is-hover {
+  background: #46464f;
+}
+.tip-dismiss {
+  display: flex;
+  gap: var(--space-sm);
+  margin-left: auto;
+}
+.tip-dismiss button {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+.tip-dismiss button:hover,
+.tip-dismiss button.is-hover {
+  color: var(--text-primary);
 }
 
 .panel-divider {

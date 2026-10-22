@@ -218,6 +218,20 @@ pub fn toggle_bar(app: &AppHandle) {
     }
 }
 
+/// A tip's Copy button: puts its command (like `/compact`) on the clipboard, ready to paste into the agent.
+/// Done here rather than in the page, since the page's clipboard needs focus and the bar never has it.
+#[tauri::command]
+pub fn copy_text(app: AppHandle, text: String) {
+    let _ = app.run_on_main_thread(move || {
+        use objc2_app_kit::{NSPasteboard, NSPasteboardTypeString};
+        let pasteboard = NSPasteboard::generalPasteboard();
+        pasteboard.clearContents();
+        let text = objc2_foundation::NSString::from_str(&text);
+        // SAFETY: a static AppKit constant, always there.
+        pasteboard.setString_forType(&text, unsafe { NSPasteboardTypeString });
+    });
+}
+
 /// The ☰ menu's "Hide bar".
 #[tauri::command]
 pub fn hide_bar(app: AppHandle) {

@@ -14,7 +14,8 @@ pub fn open(app: &AppHandle) {
 
     let built = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App("settings.html".into()))
         .title("StatusPal Settings")
-        .inner_size(480.0, 740.0)
+        // Fits a 13" MacBook screen; the page scrolls if hidden tips or Peek add a row.
+        .inner_size(480.0, 800.0)
         .resizable(false)
         .maximizable(false)
         .minimizable(false)

@@ -111,6 +111,31 @@ export default function SettingsPage() {
         </Row>
       </Section>
 
+      <Section title="Tips">
+        <Row
+          label="Show tips"
+          hint="Short hints in the panel, like when you're about to run out or a reply re-sends a huge context."
+        >
+          <Switch
+            checked={settings.tips}
+            onChange={(tips) => updateSettings({ tips })}
+          />
+        </Row>
+        {Object.keys(settings.hiddenTips).length > 0 && (
+          <Row
+            label="Hidden tips"
+            hint={`${Object.keys(settings.hiddenTips).length} hidden with Hide or Never.`}
+          >
+            <button
+              className="settings-button"
+              onClick={() => updateSettings({ hiddenTips: {} })}
+            >
+              Show again
+            </button>
+          </Row>
+        )}
+      </Section>
+
       <Section title="Claude Code">
         <ClaudeBridge />
       </Section>

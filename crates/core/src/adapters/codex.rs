@@ -213,6 +213,7 @@ impl SessionParser {
                     session_id: self.session_id.clone(),
                     model: self.model.clone(),
                     effort: self.effort.clone(),
+                    fast: false, // Codex has no fast mode in its logs
                     tokens: turn.to_token_usage(),
                 })
             }
@@ -368,6 +369,7 @@ mod tests {
                 session_id: "test-session".to_string(),
                 model: Some("gpt-5.5".to_string()),
                 effort: Some("xhigh".to_string()),
+                fast: false,
                 tokens: TokenUsage {
                     input: 400, // 1000 - 600 cached
                     output: 50,

@@ -2,7 +2,7 @@
 //! whenever they change:
 //! - when Claude or Codex writes new usage data (the file watcher)
 //! - as time passes, since the critter's gait depends on the last 10 minutes and falls asleep on its own
-//! - when you change the gait thresholds in Settings
+//! - when you change the gait thresholds or hide a tip
 
 use std::sync::Mutex;
 use std::thread;
@@ -71,7 +71,17 @@ fn refresh(app: &AppHandle) -> Vec<UsageSnapshot> {
     let mut tracker = state.tracker.lock().unwrap();
     let now = now_secs();
     tracker.refresh(now);
-    tracker.snapshots(now, settings::get(app).gait_thresholds)
+    let settings = settings::get(app);
+    tracker.snapshots(now, settings.gait_thresholds, |rule| {
+        settings.shows_tip(rule, now)
+    })
+}
+
+/// The tip's Hide (for an hour) and Never buttons.
+#[tauri::command]
+pub fn hide_tip(app: AppHandle, rule: String, forever: bool) {
+    let until = if forever { i64::MAX } else { now_secs() + 3600 };
+    settings::hide_tip(&app, rule, until);
 }
 
 /// The bar asks for this when it loads and every time it's shown.

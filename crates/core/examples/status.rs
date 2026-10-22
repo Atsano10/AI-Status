@@ -52,7 +52,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // The app's view: what the Tracker keeps (the last day), read with the same incremental reader the app uses.
     let mut tracker = Tracker::default();
     tracker.refresh(now);
-    for snapshot in tracker.snapshots(now, GaitThresholds::default()) {
+    for snapshot in tracker.snapshots(now, GaitThresholds::default(), |_| true) {
         let a = snapshot.activity;
         println!(
             "Tracker · {:?} · right now {:?} ({} effective tokens in the last 10 min)",
@@ -60,6 +60,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             a.gait,
             short(a.recent_tokens)
         );
+        if let Some(tip) = snapshot.tip {
+            println!("  tip: {} ({})", tip.text, tip.why);
+        }
     }
 
     let statusline_path = statusline::statusline_file().ok_or("can't find your home folder")?;

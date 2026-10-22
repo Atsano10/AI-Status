@@ -9,6 +9,7 @@ use crate::adapters::claude::statusline;
 use crate::adapters::claude::transcripts::{self, ClaudeReader};
 use crate::adapters::codex::{self, CodexReader};
 use crate::model::{AgentId, LimitWindow, UsageEvent, UsageSnapshot};
+use crate::tips;
 
 /// Replies older than this are dropped. The critter looks at the last 10 minutes and tips at the last few
 /// hours, so a day is plenty.
@@ -102,8 +103,26 @@ impl Tracker {
         &self.events
     }
 
-    /// What the bar shows: one snapshot per agent that has limit readings or replies from the last day.
-    pub fn snapshots(&self, now: i64, thresholds: GaitThresholds) -> Vec<UsageSnapshot> {
+    /// What the bar shows: one snapshot per agent that has limit readings or replies from the last day, each
+    /// with its best tip that `show_tip` lets through (it gets the rule's id, and says no to hidden ones).
+    pub fn snapshots(
+        &self,
+        now: i64,
+        thresholds: GaitThresholds,
+        show_tip: impl Fn(&str) -> bool,
+    ) -> Vec<UsageSnapshot> {
+        let mut snapshots = self.snapshots_without_tips(now, thresholds);
+        let ranked = tips::tips(&snapshots, &self.events, now);
+        for snapshot in &mut snapshots {
+            snapshot.tip = ranked
+                .iter()
+                .find(|tip| tip.agent == snapshot.agent && show_tip(&tip.rule))
+                .cloned();
+        }
+        snapshots
+    }
+
+    fn snapshots_without_tips(&self, now: i64, thresholds: GaitThresholds) -> Vec<UsageSnapshot> {
         [AgentId::Claude, AgentId::Codex]
             .into_iter()
             .filter_map(|agent| {
@@ -129,6 +148,7 @@ impl Tracker {
                     windows,
                     activity: activity::activity(events, now, thresholds),
                     pace,
+                    tip: None,
                 })
             })
             .collect()
@@ -148,6 +168,7 @@ mod tests {
             session_id: "s".into(),
             model: None,
             effort: None,
+            fast: false,
             tokens: TokenUsage {
                 output,
                 ..Default::default()

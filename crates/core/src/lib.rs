@@ -8,6 +8,7 @@ pub mod model;
 pub mod placement;
 pub mod settings;
 pub mod tail;
+pub mod tips;
 pub mod tracker;
 pub mod watch;
 

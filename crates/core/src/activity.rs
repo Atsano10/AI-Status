@@ -163,6 +163,7 @@ mod tests {
             session_id: "s".into(),
             model: None,
             effort: None,
+            fast: false,
             tokens: TokenUsage {
                 output,
                 ..Default::default()

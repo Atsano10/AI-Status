@@ -83,6 +83,18 @@ pub struct Settings {
     pub bar_display: Option<String>,
     /// Where the critter starts jogging and running (effective tokens per 10 minutes).
     pub gait_thresholds: GaitThresholds,
+    /// Show tips in the panel (see `tips.rs`).
+    pub tips: bool,
+    /// Tips you hid, by rule id, until when (Unix seconds). "Never" is far in the future.
+    #[cfg_attr(test, ts(type = "{ [rule in string]?: number }"))]
+    pub hidden_tips: BTreeMap<String, i64>,
+}
+
+impl Settings {
+    /// Whether a tip from this rule may show right now.
+    pub fn shows_tip(&self, rule: &str, now: i64) -> bool {
+        self.tips && self.hidden_tips.get(rule).is_none_or(|until| *until <= now)
+    }
 }
 
 impl Default for Settings {
@@ -97,6 +109,8 @@ impl Default for Settings {
             bar_positions: BTreeMap::new(),
             bar_display: None,
             gait_thresholds: GaitThresholds::default(),
+            tips: true,
+            hidden_tips: BTreeMap::new(),
         }
     }
 }
@@ -193,6 +207,8 @@ mod tests {
                 jog_at: 50_000,
                 run_at: 200_000,
             },
+            tips: false,
+            hidden_tips: BTreeMap::from([("fast-mode".into(), i64::MAX)]),
         };
         save(&path, &settings).unwrap();
         assert_eq!(load(&path), settings);
@@ -240,6 +256,17 @@ mod tests {
                 .with_changes(serde_json::json!("vertical"))
                 .is_err()
         );
+    }
+
+    #[test]
+    fn hidden_tips_come_back_when_their_time_is_up() {
+        let mut settings = Settings::default();
+        settings.hidden_tips.insert("cold-cache".into(), 1000);
+        assert!(!settings.shows_tip("cold-cache", 999));
+        assert!(settings.shows_tip("cold-cache", 1000));
+        assert!(settings.shows_tip("huge-context", 0));
+        settings.tips = false;
+        assert!(!settings.shows_tip("huge-context", 0));
     }
 
     #[test]

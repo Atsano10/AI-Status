@@ -39,6 +39,8 @@ export default function Bar() {
       onDragStart={() => invoke("drag_bar")}
       onHide={hideBar}
       onSettings={() => invoke("open_settings")}
+      onCopy={(text) => invoke("copy_text", { text })}
+      onHideTip={(rule, forever) => invoke("hide_tip", { rule, forever })}
       onQuit={() => invoke("quit")}
     />
   );
@@ -70,6 +72,8 @@ interface BarViewProps {
   onDragStart?: () => void;
   onHide?: () => void;
   onSettings?: () => void;
+  onCopy?: (text: string) => void;
+  onHideTip?: (rule: string, forever: boolean) => void;
   onQuit?: () => void;
 }
 
@@ -164,6 +168,7 @@ export function BarView(props: BarViewProps) {
         agent={agent}
         mood={mood}
         gait={gait}
+        tip={paused ? null : (snapshot?.tip?.severity ?? null)}
         onMouseDown={(e) => {
           if (e.button === 0)
             pressPill(e.nativeEvent, {
@@ -182,6 +187,8 @@ export function BarView(props: BarViewProps) {
           onPrefs={onPrefs}
           onHide={() => props.onHide?.()}
           onSettings={props.onSettings}
+          onCopy={props.onCopy}
+          onHideTip={props.onHideTip}
           onQuit={() => props.onQuit?.()}
           closing={panel.closing}
         />

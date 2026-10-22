@@ -1,6 +1,7 @@
 import { useState, type CSSProperties } from "react";
 import { DEFAULT_HOTKEY, formatHotkey } from "../settings/hotkey";
 import { PauseIcon } from "./Pill";
+import TipCard from "./TipCard";
 import { tomorrowMorning, type Prefs } from "./prefs";
 import {
   currentPct,
@@ -24,6 +25,10 @@ interface PanelProps {
   onHide: () => void;
   /** The ☰ menu's "Settings…". Left out in the dev gallery. */
   onSettings?: () => void;
+  /** A tip's Copy button. Left out in the dev gallery. */
+  onCopy?: (text: string) => void;
+  /** A tip's Hide / Never buttons: the tip's rule and whether it's for good. */
+  onHideTip?: (rule: string, forever: boolean) => void;
   onQuit: () => void;
   /** Plays the exit animation before the panel is removed. */
   closing: boolean;
@@ -64,6 +69,13 @@ export default function Panel(props: PanelProps) {
             <p className="panel-note">
               Switch to Claude, Codex, or a terminal running one.
             </p>
+          )}
+          {active?.tip && !paused && (
+            <TipCard
+              tip={active.tip}
+              onCopy={props.onCopy}
+              onHide={(forever) => props.onHideTip?.(active.tip!.rule, forever)}
+            />
           )}
           {others.length > 0 && (
             <div className="panel-others">

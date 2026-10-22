@@ -61,6 +61,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             usage::get_limits,
+            usage::hide_tip,
             quit,
             active::get_active_agent,
             settings::get_settings,
@@ -78,6 +79,8 @@ pub fn run() {
             bar::set_click_through,
             #[cfg(target_os = "macos")]
             bar::drag_bar,
+            #[cfg(target_os = "macos")]
+            bar::copy_text,
             #[cfg(target_os = "macos")]
             hotkey::set_hotkey,
             #[cfg(target_os = "macos")]

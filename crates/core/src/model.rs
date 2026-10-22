@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::activity::{Activity, Pace};
+use crate::tips::Tip;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(test, derive(ts_rs::TS), ts(export))]
@@ -47,6 +48,8 @@ pub struct UsageEvent {
     pub model: Option<String>,
     /// The reasoning effort it ran at, e.g. `"high"` (Claude) or `"xhigh"` (Codex).
     pub effort: Option<String>,
+    /// Ran in Claude Code's fast mode (logged as a `speed` other than `"standard"`).
+    pub fast: bool,
     pub tokens: TokenUsage,
 }
 
@@ -91,6 +94,8 @@ pub struct UsageSnapshot {
     pub activity: Activity,
     /// How fast each window is filling, for the windows we have enough readings for.
     pub pace: Vec<Pace>,
+    /// The best tip for this agent right now that you haven't hidden (see `tips.rs`).
+    pub tip: Option<Tip>,
 }
 
 #[cfg(test)]

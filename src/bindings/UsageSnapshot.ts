@@ -3,6 +3,7 @@ import type { Activity } from "./Activity";
 import type { AgentId } from "./AgentId";
 import type { LimitWindow } from "./LimitWindow";
 import type { Pace } from "./Pace";
+import type { Tip } from "./Tip";
 
 /**
  * Everything the bar shows for one agent. Grows later (tokens today, model, gait...).
@@ -20,4 +21,8 @@ activity: Activity,
 /**
  * How fast each window is filling, for the windows we have enough readings for.
  */
-pace: Array<Pace>, };
+pace: Array<Pace>, 
+/**
+ * The best tip for this agent right now that you haven't hidden (see `tips.rs`).
+ */
+tip: Tip | null, };

@@ -51,6 +51,8 @@ struct RawUsage {
     cache_read_input_tokens: u64,
     cache_creation_input_tokens: u64,
     output_tokens_details: OutputDetails,
+    /// `"standard"`, or something else in fast mode.
+    speed: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -72,6 +74,10 @@ pub fn parse_line(line: &str) -> Option<UsageEvent> {
     }
     let message = line.message?;
     let usage = message.usage?;
+    let fast = usage
+        .speed
+        .as_deref()
+        .is_some_and(|speed| speed != "standard");
     let tokens = TokenUsage {
         input: usage.input_tokens,
         output: usage.output_tokens,
@@ -93,6 +99,7 @@ pub fn parse_line(line: &str) -> Option<UsageEvent> {
         session_id: line.session_id.unwrap_or_default(),
         model: message.model,
         effort: line.effort,
+        fast,
         tokens,
     })
 }
@@ -159,6 +166,7 @@ mod tests {
                 session_id: "s1".into(),
                 model: Some("claude-opus-5-5".into()),
                 effort: Some("high".into()),
+                fast: false,
                 tokens: TokenUsage {
                     input: 2,
                     output: 228,

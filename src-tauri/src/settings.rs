@@ -68,6 +68,18 @@ pub fn set_hotkey(app: &AppHandle, hotkey: String) -> Settings {
     .unwrap_or_else(|_| get(app))
 }
 
+/// Hides a tip's rule until `until` (Unix seconds).
+pub fn hide_tip(app: &AppHandle, rule: String, until: i64) {
+    let _ = replace(app, |old| {
+        let mut hidden_tips = old.hidden_tips.clone();
+        hidden_tips.insert(rule, until);
+        Ok(Settings {
+            hidden_tips,
+            ..old.clone()
+        })
+    });
+}
+
 /// Works out new settings from the current ones, saves them, and tells every window. Returns the new
 /// settings, or the error from `change` (nothing is saved then).
 fn replace(

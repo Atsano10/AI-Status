@@ -41,12 +41,14 @@ const claude = (
   windows: [win(300, fiveH, resetsIn, true), win(10080, week, 2.6 * 24 * H)],
   activity: walking,
   pace: [],
+  tip: null,
 });
 const codex: UsageSnapshot = {
   agent: "Codex",
   windows: [win(43200, 6, 22 * 24 * H)],
   activity: walking,
   pace: [],
+  tip: null,
 };
 const base: Prefs = {
   orientation: "horizontal",
@@ -61,6 +63,28 @@ interface Sample {
   agent: AgentId | null;
   prefs?: Partial<Prefs>;
 }
+/** A panel with a tip, like the one this session got (crates/core/src/tips.rs, "huge-context"). */
+const WITH_TIP: Sample = {
+  name: "With a tip",
+  note: "",
+  agent: "Claude",
+  snapshots: [
+    {
+      ...claude(48),
+      tip: {
+        rule: "huge-context",
+        agent: "Claude",
+        severity: "nudge",
+        text: "Each reply re-sends 473k tokens. /compact, or /clear if you've moved on.",
+        why: "Your usual today is 218k",
+        action: { kind: "copy", text: "/compact" },
+        impact: 0.7,
+      },
+    },
+    codex,
+  ],
+};
+
 const SAMPLES: Sample[] = [
   {
     name: "Normal",
@@ -243,26 +267,31 @@ export default function GalleryPage() {
       <section>
         <h2>Panel</h2>
         <div className="gallery-panels">
-          {[SAMPLES[0], SAMPLES[3], SAMPLES[5], SAMPLES[6], SAMPLES[8]].map(
-            (s) => (
-              <figure key={s.name}>
-                <Panel
-                  snapshots={s.snapshots}
-                  agent={s.agent}
-                  now={NOW}
-                  prefs={{ ...base, ...s.prefs }}
-                  paused={s.prefs?.pausedUntil != null}
-                  onPrefs={() => {}}
-                  onHide={() => {}}
-                  onQuit={() => {}}
-                  closing={false}
-                />
-                <figcaption>
-                  <b>{s.name}</b>
-                </figcaption>
-              </figure>
-            ),
-          )}
+          {[
+            SAMPLES[0],
+            WITH_TIP,
+            SAMPLES[3],
+            SAMPLES[5],
+            SAMPLES[6],
+            SAMPLES[8],
+          ].map((s) => (
+            <figure key={s.name}>
+              <Panel
+                snapshots={s.snapshots}
+                agent={s.agent}
+                now={NOW}
+                prefs={{ ...base, ...s.prefs }}
+                paused={s.prefs?.pausedUntil != null}
+                onPrefs={() => {}}
+                onHide={() => {}}
+                onQuit={() => {}}
+                closing={false}
+              />
+              <figcaption>
+                <b>{s.name}</b>
+              </figcaption>
+            </figure>
+          ))}
         </div>
       </section>
 
