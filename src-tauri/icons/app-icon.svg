@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#202027"/>
+      <stop offset="1" stop-color="#0b0b0e"/>
+    </linearGradient>
+  </defs>
+  <!-- The rounded square, with Apple's ~100px margin. -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+  <rect x="104" y="104" width="816" height="816" rx="181" fill="none" stroke="#ffffff" stroke-opacity="0.08" stroke-width="8"/>
+  <!-- The pal from tray.svg: one of its pixels is 30px here. -->
+  <g transform="translate(242 178) scale(30)" fill="#39ff88" shape-rendering="crispEdges">
+    <rect x="3" y="1" width="2" height="1"/><rect x="13" y="1" width="2" height="1"/><rect x="2" y="2" width="14" height="1"/><rect x="1" y="3" width="16" height="1"/><rect x="1" y="4" width="16" height="1"/><rect x="1" y="5" width="3" height="1"/><rect x="6" y="5" width="6" height="1"/><rect x="14" y="5" width="3" height="1"/><rect x="1" y="6" width="3" height="1"/><rect x="6" y="6" width="6" height="1"/><rect x="14" y="6" width="3" height="1"/><rect x="1" y="7" width="16" height="1"/><rect x="1" y="8" width="16" height="1"/><rect x="1" y="9" width="2" height="1"/><rect x="15" y="9" width="2" height="1"/><rect x="1" y="10" width="2" height="1"/><rect x="4" y="10" width="7" height="1"/><rect x="15" y="10" width="2" height="1"/><rect x="1" y="11" width="2" height="1"/><rect x="4" y="11" width="7" height="1"/><rect x="15" y="11" width="2" height="1"/><rect x="1" y="12" width="2" height="1"/><rect x="15" y="12" width="2" height="1"/><rect x="1" y="13" width="16" height="1"/><rect x="2" y="14" width="14" height="1"/><rect x="3" y="15" width="2" height="1"/><rect x="13" y="15" width="2" height="1"/><rect x="3" y="16" width="2" height="1"/><rect x="13" y="16" width="2" height="1"/>
+  </g>
+  <!-- A usage bar like the pill's: 8 of 12 segments lit. -->
+  <g shape-rendering="crispEdges">
+    <rect x="217" y="764" width="40" height="52" fill="#39ff88"/><rect x="267" y="764" width="40" height="52" fill="#39ff88"/><rect x="317" y="764" width="40" height="52" fill="#39ff88"/><rect x="367" y="764" width="40" height="52" fill="#39ff88"/><rect x="417" y="764" width="40" height="52" fill="#39ff88"/><rect x="467" y="764" width="40" height="52" fill="#39ff88"/><rect x="517" y="764" width="40" height="52" fill="#39ff88"/><rect x="567" y="764" width="40" height="52" fill="#39ff88"/><rect x="617" y="764" width="40" height="52" fill="#2a2a31"/><rect x="667" y="764" width="40" height="52" fill="#2a2a31"/><rect x="717" y="764" width="40" height="52" fill="#2a2a31"/><rect x="767" y="764" width="40" height="52" fill="#2a2a31"/>
+  </g>
+</svg>
