@@ -16,6 +16,9 @@ import {
 } from "./state";
 import type { AgentId, LimitWindow, UsageSnapshot } from "./types";
 
+/** Listed in the panel even with no recent numbers, so an unused agent doesn't look missing. */
+const ALL_AGENTS: AgentId[] = ["Claude", "Codex", "Gemini"];
+
 interface PanelProps {
   snapshots: UsageSnapshot[];
   agent: AgentId | null;
@@ -40,7 +43,7 @@ export default function Panel(props: PanelProps) {
   const { snapshots, agent, now, prefs, paused, onPrefs, closing } = props;
   const [view, setView] = useState<"main" | "menu" | "pause">("main");
   const active = agent ? snapshots.find((s) => s.agent === agent) : undefined;
-  const others = snapshots.filter((s) => s.agent !== agent);
+  const others = ALL_AGENTS.filter((a) => a !== agent);
 
   return (
     <div className={`panel${closing ? " is-closing" : ""}`}>
@@ -80,13 +83,16 @@ export default function Panel(props: PanelProps) {
               onHide={(forever) => props.onHideTip?.(active.tip!.rule, forever)}
             />
           )}
-          {others.length > 0 && (
-            <div className="panel-others">
-              {others.map((s) => (
-                <OtherAgent key={s.agent} snapshot={s} now={now} />
-              ))}
-            </div>
-          )}
+          <div className="panel-others">
+            {others.map((a) => (
+              <OtherAgent
+                key={a}
+                agent={a}
+                snapshot={snapshots.find((s) => s.agent === a)}
+                now={now}
+              />
+            ))}
+          </div>
         </>
       )}
 
@@ -220,32 +226,38 @@ function WindowRow({
 }
 
 function OtherAgent({
+  agent,
   snapshot,
   now,
 }: {
-  snapshot: UsageSnapshot;
+  agent: AgentId;
+  /** Missing when the agent hasn't been used in the last day. */
+  snapshot?: UsageSnapshot;
   now: number;
 }) {
+  const windows = snapshot?.windows ?? [];
   return (
     <div className="other-agent">
       <span className="panel-agent panel-agent--small">
-        <span
-          className={`agent-dot agent-dot--${snapshot.agent.toLowerCase()}`}
-        />
-        {snapshot.agent}
+        <span className={`agent-dot agent-dot--${agent.toLowerCase()}`} />
+        {agent}
       </span>
       <span className="other-agent-windows">
-        {snapshot.windows.map((w) => {
-          const pct = currentPct(w, now);
-          return (
-            <span
-              key={w.window_minutes}
-              className={`other-window level-${levelFor(pct)}`}
-            >
-              {shortLabel(w)} <b>{Math.round(pct)}%</b>
-            </span>
-          );
-        })}
+        {windows.length === 0 ? (
+          <span className="other-window">not used lately</span>
+        ) : (
+          windows.map((w) => {
+            const pct = currentPct(w, now);
+            return (
+              <span
+                key={w.window_minutes}
+                className={`other-window level-${levelFor(pct)}`}
+              >
+                {shortLabel(w)} <b>{Math.round(pct)}%</b>
+              </span>
+            );
+          })
+        )}
       </span>
     </div>
   );
